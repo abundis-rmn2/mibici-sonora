@@ -26,12 +26,13 @@ export default function MapView({ stations, activeRipples = [], showMarkers = tr
   }, []);
 
   const gdlCenter = [20.6736, -103.3440];
+  const zoomLevel = typeof window !== 'undefined' && window.innerWidth < 768 ? 12 : 13;
 
   return (
     <div style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0, zIndex: 0 }}>
       <MapContainer 
         center={gdlCenter} 
-        zoom={13} 
+        zoom={zoomLevel} 
         style={{ height: '100%', width: '100%' }}
         zoomControl={false} // Quitamos controles default
         dragging={false} // Evitar arrastre
