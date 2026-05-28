@@ -16,6 +16,12 @@ export function useSonification() {
     console.log('🔈 Inicializando motor de Tone.js...');
     // Navegadores requieren Tone.start() tras una interacción del usuario
     await Tone.start();
+    
+    // HACK PARA iOS: Tocar un sonido inaudible inmediatamente en el mismo hilo de la interacción
+    // para forzar a Safari a "despertar" el motor de audio.
+    const unlockSynth = new Tone.Synth().toDestination();
+    unlockSynth.triggerAttackRelease("C4", "64n", Tone.now(), 0);
+    
     console.log('🔈 Tone.start() exitoso. Creando sintetizadores...');
     
     // Crear un reverb generoso para dar sensación de "ciudad espaciosa"
