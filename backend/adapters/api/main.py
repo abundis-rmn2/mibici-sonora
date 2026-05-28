@@ -117,6 +117,46 @@ async def on_startup():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
         await conn.run_sync(Base.metadata.create_all)
 
+    # -------------------------------------------------------------------------
+    # WORKAROUND PARA RENDER FREE TIER
+    # Como Render no permite 'Background Workers' en la capa gratuita,
+    # ejecutamos el recolector aquí mismo, dentro de la API web.
+    # -------------------------------------------------------------------------
+    logger.info("🚀 Iniciando recolector de datos en segundo plano...")
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from infrastructure.config import settings
+
+    scheduler = AsyncIOScheduler()
+
+    async def _poll_status():
+        try:
+            container = get_container()
+            current_stations = await container.station_repo.get_all()
+            
+            # Si la DB está vacía, saltamos este ciclo
+            if not current_stations:
+                logger.warning("Esperando sincronización de estaciones...")
+                return
+                
+            zones = {s.id: s.region for s in current_stations}
+            container.collect_status.set_station_zones(zones)
+            
+            result = await container.collect_status.execute()
+            logger.info(f"📊 Collector: {result['snapshots']} snapshots, {result['events']} eventos detectados")
+        except Exception as e:
+            logger.error(f"❌ Error en recolector: {e}")
+
+    scheduler.add_job(
+        _poll_status,
+        "interval",
+        seconds=settings.STATUS_POLL_SECONDS,
+        id="poll_status",
+    )
+    
+    # Guardamos el scheduler en la app para poder detenerlo al apagar
+    app.state.scheduler = scheduler
+    scheduler.start()
+
     logger.info("✅ API lista. Documentación en: http://localhost:8000/docs")
 
 
@@ -128,6 +168,10 @@ async def on_shutdown():
     Cierra el pool de conexiones a PostgreSQL limpiamente.
     """
     from infrastructure.database import engine
+
+    if hasattr(app.state, "scheduler"):
+        logger.info("🛑 Deteniendo recolector...")
+        app.state.scheduler.shutdown()
 
     await engine.dispose()
     logger.info("👋 API detenida")

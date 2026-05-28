@@ -28,24 +28,6 @@ services:
       - key: TIMEZONE
         value: "America/Mexico_City"
 
-  # ---------------------------------------------------------------------------
-  # 3. Collector Worker (Proceso en Segundo Plano)
-  # ---------------------------------------------------------------------------
-  # Extrae datos de MiBici cada 8 segundos sin bloquear la API
-  - type: worker
-    name: mibici-collector
-    env: docker
-    dockerContext: ./backend
-    dockerfilePath: ./backend/Dockerfile
-    # Sobrescribimos el comando por defecto de FastAPI para que ejecute el CLI
-    dockerCommand: python -m cli start-collector --interval 8
-    plan: free
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: mibici-db
-          property: connectionString
-      - key: GBFS_BASE_URL
-        value: "https://guadalajara.publicbikesystem.net/customer/gbfs/v3.0"
+
 
 
