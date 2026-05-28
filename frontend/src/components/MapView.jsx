@@ -33,7 +33,13 @@ export default function MapView({ stations, activeRipples = [], showMarkers = tr
         center={gdlCenter} 
         zoom={13} 
         style={{ height: '100%', width: '100%' }}
-        zoomControl={false} // Quitamos los controles default (podemos ponerlos donde queramos)
+        zoomControl={false} // Quitamos controles default
+        dragging={false} // Evitar arrastre
+        scrollWheelZoom={false} // Evitar zoom con rueda
+        doubleClickZoom={false} // Evitar zoom con doble clic
+        touchZoom={false} // Evitar zoom táctil
+        keyboard={false} // Evitar mover con teclado
+        boxZoom={false} // Evitar zoom con caja
       >
         {/* Usamos un base map oscuro para combinar con el Dark Mode y hacer resaltar los marcadores */}
         <TileLayer
