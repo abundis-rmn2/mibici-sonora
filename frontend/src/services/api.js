@@ -15,7 +15,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL
  * Obtiene todas las estaciones con su status actual
  */
 export async function fetchStations() {
-  const response = await fetch(`${API_BASE}/stations`);
+  const t = new Date().getTime();
+  const response = await fetch(`${API_BASE}/stations?_t=${t}`, {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' }
+  });
   if (!response.ok) {
     throw new Error(`Error fetching stations: ${response.statusText}`);
   }
@@ -27,7 +31,11 @@ export async function fetchStations() {
  * @param {number} limit Máximo de eventos a retornar
  */
 export async function fetchLatestEvents(limit = 50) {
-  const response = await fetch(`${API_BASE}/events/latest?limit=${limit}`);
+  const t = new Date().getTime();
+  const response = await fetch(`${API_BASE}/events/latest?limit=${limit}&_t=${t}`, {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' }
+  });
   if (!response.ok) {
     throw new Error(`Error fetching events: ${response.statusText}`);
   }
