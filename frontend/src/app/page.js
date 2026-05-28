@@ -24,10 +24,10 @@ const MapView = dynamic(() => import('../components/MapView'), {
 
 export default function Dashboard() {
   const [currentZone, setZone] = useState('Todas');
-  const [showMarkers, setShowMarkers] = useState(true);
+  const [showMarkers, setShowMarkers] = useState(false); // Por default oculto
   const [showRipples, setShowRipples] = useState(true);
   const [showTimeline, setShowTimeline] = useState(true);
-  const [showFeed, setShowFeed] = useState(true);
+  const [showFeed, setShowFeed] = useState(false); // Por default oculto
   const [activeRipples, setActiveRipples] = useState([]);
   
   // Hook de sonificación (Tone.js)
