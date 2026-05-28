@@ -49,6 +49,7 @@ export default function Dashboard() {
     stopAudio, 
     scheduleEvents, 
     playTick,
+    testSound,
     setOnRipple,
     analyserReturned,
     analyserTaken,
@@ -201,6 +202,7 @@ export default function Dashboard() {
           setShowFeed={setShowFeed}
           showTimer={showTimer}
           setShowTimer={setShowTimer}
+          testSound={testSound}
         />
       </div>
 

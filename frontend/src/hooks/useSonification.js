@@ -60,19 +60,35 @@ export function useSonification() {
     kickSynth.connect(analyserReturnedRef.current); // Al osciloscopio rojo
     kickSynth.toDestination(); // Directo a la salida (CERO reverb)
 
-    // Hi-Hats/Snare (MetalSynth) para Zapopan y Tlaquepaque
-    const metalSynth = new Tone.MetalSynth({
-      frequency: 250,
-      envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
-      harmonicity: 5.1,
-      modulationIndex: 32,
-      resonance: 4000,
-      octaves: 1.5,
-      volume: 2 // Bajamos un poco porque el reverb lo inflará
+    // Snare (Ruido Blanco para Zapopan) - Más corto, seco y con volumen muy reducido
+    const snareSynth = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.08 }, // Envolvente mucho más corta
+      volume: -12 // Bajado aún más (al 70% de lo que estaba antes)
     });
-    metalSynth.connect(analyserReturnedRef.current); // Al osciloscopio rojo
-    metalSynth.connect(reverbRef.current); // Al Dub Reverb
-    metalSynth.toDestination(); // Para mantener el ataque seco presente
+    snareSynth.connect(analyserReturnedRef.current);
+    // Eliminada conexión a reverb para hacerlo completamente seco
+    snareSynth.toDestination();
+
+    // Hi-Hat (Ruido Rosa muy corto para Tlaquepaque) - Mismo sonido, menos volumen
+    const hihatSynth = new Tone.NoiseSynth({
+      noise: { type: 'pink' },
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
+      volume: -10 // Bajado considerablemente
+    });
+    hihatSynth.connect(analyserReturnedRef.current);
+    hihatSynth.connect(reverbRef.current);
+    hihatSynth.toDestination();
+
+    // Crash (Platillo explosivo largo)
+    const crashSynth = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.005, decay: 1.5, sustain: 0, release: 1.5 },
+      volume: -12 // Bajado radicalmente (aprox 44% de lo que estaba antes)
+    });
+    crashSynth.connect(analyserReturnedRef.current);
+    crashSynth.connect(reverbRef.current);
+    crashSynth.toDestination();
     
     // Arpegios (FMSynth)
     const arpSynth = new Tone.PolySynth(Tone.FMSynth, {
@@ -108,7 +124,9 @@ export function useSonification() {
 
     synthRef.current = { 
       kick: kickSynth, 
-      metal: metalSynth, 
+      snare: snareSynth,
+      hihat: hihatSynth,
+      crash: crashSynth,
       arp: arpSynth,
       tick: tickSynth
     };
@@ -191,10 +209,11 @@ export function useSonification() {
         const playTime = time + jitter;
 
         if (event.zone === 'ZPN') {
-           synthRef.current.metal.triggerAttackRelease("16n", playTime, velocity);
+           // Zapopan: Snare
+           synthRef.current.snare.triggerAttackRelease("8n", playTime, velocity);
         } else if (event.zone === 'TLQ') {
-           synthRef.current.metal.set({ envelope: { release: 0.1 } });
-           synthRef.current.metal.triggerAttackRelease("8n", playTime, velocity * 0.8);
+           // Tlaquepaque: Crash (Reemplaza al Hi-Hat a petición)
+           synthRef.current.crash.triggerAttackRelease("2n", playTime, velocity * 0.7);
         } else {
            // GDL - Kick (Afinación más aguda a petición)
            const kickPitches = ['C3', 'D3', 'E3', 'G3'];
@@ -242,16 +261,38 @@ export function useSonification() {
   };
 
   const playTick = (beat) => {
-    // Si queremos el tick sincronizado, deberíamos programarlo en el loop en vez de tocarlo manual
-    // Para simplificar, dejaremos que la UI lo llame, o lo ignoramos. 
-    // Como el metrónomo es visual, lo mejor es que UI siga haciendo el setTimeout o use Tone.Transport.
-    // Dejaré el método manual para que page.js lo siga llamando.
     if (!isReadyRef.current || !synthRef.current) return;
     const time = Tone.now();
     if (beat === 0) {
       synthRef.current.tick.triggerAttackRelease("C6", "32n", time, 0.6);
     } else {
       synthRef.current.tick.triggerAttackRelease("G5", "32n", time, 0.2);
+    }
+  };
+
+  const testSound = (type) => {
+    if (!isReadyRef.current || !synthRef.current) return;
+    const time = Tone.now();
+    
+    switch (type) {
+      case 'kick':
+        synthRef.current.kick.triggerAttackRelease("D3", "8n", time, 1);
+        break;
+      case 'hihat':
+        synthRef.current.hihat.triggerAttackRelease("16n", time, 1);
+        break;
+      case 'snare':
+        synthRef.current.snare.triggerAttackRelease("8n", time, 1);
+        break;
+      case 'crash':
+        synthRef.current.crash.triggerAttackRelease("2n", time, 1);
+        break;
+      case 'arp':
+        synthRef.current.arp.triggerAttackRelease("C4", "16n", time, 0.8);
+        synthRef.current.arp.triggerAttackRelease("C3", "8n", time + 0.5, 0.5);
+        break;
+      default:
+        break;
     }
   };
 
@@ -266,6 +307,7 @@ export function useSonification() {
     stopAudio, 
     scheduleEvents, 
     playTick, 
+    testSound,
     setOnRipple,
     analyserReturned: analyserReturnedRef.current,
     analyserTaken: analyserTakenRef.current,
