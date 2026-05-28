@@ -11,6 +11,7 @@ import TimelineChart from '../components/TimelineChart';
 import { useStations } from '../hooks/useStations';
 import { useEvents } from '../hooks/useEvents';
 import { useSonification } from '../hooks/useSonification';
+import WelcomeModal from '../components/WelcomeModal';
 
 // Leaflet debe importarse dinámicamente porque usa `window` y rompe SSR
 const MapView = dynamic(() => import('../components/MapView'), { 
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [showTimeline, setShowTimeline] = useState(true);
   const [showFeed, setShowFeed] = useState(false); // Por default oculto
   const [activeRipples, setActiveRipples] = useState([]);
+  const [showWelcome, setShowWelcome] = useState(true); // Modal inicial
   
   // Hook de sonificación (Tone.js)
   const { isReady: audioReady, initAudio, stopAudio, playBeatAudio } = useSonification();
@@ -88,6 +90,14 @@ export default function Dashboard() {
 
   return (
     <main style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      {/* Modal Inicial para activar Audio */}
+      {showWelcome && (
+        <WelcomeModal onStart={() => {
+          initAudio();
+          setShowWelcome(false);
+        }} />
+      )}
+
       {/* UI Superpuesta */}
       <Header 
         currentZone={currentZone} 
