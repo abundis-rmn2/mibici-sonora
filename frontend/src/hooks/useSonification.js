@@ -83,15 +83,21 @@ export function useSonification() {
     // Todos los eventos en este beat se tocan "ahora"
     const time = Tone.now();
     
+    // Diccionario para contar cuántas veces suena el mismo tipo de evento (nota) en este beat
+    const noteCounts = {};
+    
     eventsInBeat.forEach((event, i) => {
       const delta = event.delta || 1;
       const duration = delta === 1 ? '8n' : delta <= 3 ? '4n' : '2n';
       const velocity = Math.min(0.5 + (delta * 0.1), 1); 
       
-      // CRÍTICO: Tone.js no permite tocar dos notas en el mismo sintetizador
-      // monofónico en el milisegundo exacto. Como varios eventos pueden caer
-      // en el mismo beat, los separamos por 50 milisegundos (un "flam" de batería).
-      const safeTime = time + (i * 0.05);
+      // Identificador único para saber si es la misma "nota" o sintetizador
+      const noteKey = `${event.event_type}-${event.zone}`;
+      const count = noteCounts[noteKey] || 0;
+      noteCounts[noteKey] = count + 1;
+      
+      // Añadir medio tiempo (0.5 segundos) si hay notas iguales para que no se empalmen
+      const safeTime = time + (count * 0.5);
 
       if (event.event_type === 'bike_taken') {
         // Tocar instrumento de percusión distinto según el municipio
