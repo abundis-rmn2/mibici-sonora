@@ -134,7 +134,18 @@ async def on_shutdown():
 
 
 # =============================================================================
-# Endpoint: Health Check
+# Endpoint: Root (Health Check secundario)
+# =============================================================================
+@app.get("/", tags=["Sistema"], include_in_schema=False)
+async def root():
+    """
+    Punto de entrada base. Útil para health checks automáticos de Render.
+    """
+    return {"status": "ok", "app": "MiBici Sonora API", "docs": "/docs"}
+
+
+# =============================================================================
+# Endpoint: Health Check Principal
 # =============================================================================
 @app.get(
     "/api/health",
