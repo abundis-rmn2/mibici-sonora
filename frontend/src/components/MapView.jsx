@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 /**
@@ -21,7 +22,6 @@ const getMarkerColor = (bikes, capacity) => {
 export default function MapView({ stations, activeRipples = [], showMarkers = true, showRipples = true }) {
   // Solución para el bug de los iconos de Leaflet en React (si se usaran iconos de imagen)
   useEffect(() => {
-    // Si usáramos marcadores de imagen normales:
     // L.Icon.Default.imagePath = 'images/';
   }, []);
 
@@ -62,25 +62,25 @@ export default function MapView({ stations, activeRipples = [], showMarkers = tr
             <React.Fragment key={`container-${station.id}`}>
               {/* Si hay un evento reciente, dibujamos un marcador extra debajo que hace la animación de onda */}
               {showRipples && takenRipple && (
-                <CircleMarker
-                  center={[station.lat, station.lon]}
-                  radius={6}
-                  pathOptions={{ 
-                    color: '#FF6B6B',
-                    fillOpacity: 0,
-                    className: 'ripple-taken'
-                  }}
+                <Marker
+                  position={[station.lat, station.lon]}
+                  icon={L.divIcon({
+                    className: 'custom-ripple',
+                    html: '<div class="ripple-ring taken"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                  })}
                 />
               )}
               {showRipples && returnedRipple && (
-                <CircleMarker
-                  center={[station.lat, station.lon]}
-                  radius={6}
-                  pathOptions={{ 
-                    color: '#00C9A7',
-                    fillOpacity: 0,
-                    className: 'ripple-returned'
-                  }}
+                <Marker
+                  position={[station.lat, station.lon]}
+                  icon={L.divIcon({
+                    className: 'custom-ripple',
+                    html: '<div class="ripple-ring returned"></div>',
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                  })}
                 />
               )}
               

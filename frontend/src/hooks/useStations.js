@@ -17,6 +17,9 @@ export function useStations(pollIntervalMs = 30000) {
     let isMounted = true;
 
     async function loadStations() {
+      if (isMounted) {
+        setLoading(true);
+      }
       try {
         const data = await fetchStations();
         if (isMounted) {

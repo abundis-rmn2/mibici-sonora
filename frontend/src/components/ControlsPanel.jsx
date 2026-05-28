@@ -4,6 +4,8 @@ export default function ControlsPanel({
   showMarkers, setShowMarkers, 
   showRipples, setShowRipples,
   showTimeline, setShowTimeline,
+  showSequencer, setShowSequencer,
+  showOscilloscope, setShowOscilloscope,
   showFeed, setShowFeed,
   showTimer, setShowTimer
 }) {
@@ -51,6 +53,26 @@ export default function ControlsPanel({
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
         Gráfica de Línea de Tiempo
+      </label>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+        <input 
+          type="checkbox" 
+          checked={showSequencer} 
+          onChange={e => setShowSequencer(e.target.checked)} 
+          style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
+        />
+        Secuenciador Visual (Piano Roll)
+      </label>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+        <input 
+          type="checkbox" 
+          checked={showOscilloscope} 
+          onChange={e => setShowOscilloscope(e.target.checked)} 
+          style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
+        />
+        Osciloscopio (Circular)
       </label>
       
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>

@@ -51,7 +51,15 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
               e.fetchTimestamp = fetchTimestamp;
             });
 
-            if (newEvents.length === 0) return prevEvents;
+            if (newEvents.length === 0) {
+              // Si no hay eventos nuevos, llamamos al callback con un arreglo vacío
+              // para que el secuenciador y el motor de audio limpien el compás y quede en silencio.
+              if (prevEvents.length > 0 && onNewEventsRef.current && isMounted) {
+                const callback = onNewEventsRef.current;
+                setTimeout(() => callback([]), 0);
+              }
+              return prevEvents;
+            }
             
             // Llamar al callback SOLAMENTE si no es la carga inicial
             // (Para evitar sonificar 200 eventos de golpe y saturar Tone.js)

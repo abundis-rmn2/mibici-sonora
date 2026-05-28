@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Header from '../components/Header';
 import StatsPanel from '../components/StatsPanel';
@@ -8,6 +8,8 @@ import EventFeed from '../components/EventFeed';
 import StatusBar from '../components/StatusBar';
 import ControlsPanel from '../components/ControlsPanel';
 import TimelineChart from '../components/TimelineChart';
+import VisualSequencer from '../components/VisualSequencer';
+import Oscilloscope from '../components/Oscilloscope';
 import PollingTimer from '../components/PollingTimer';
 import { useStations } from '../hooks/useStations';
 import { useEvents } from '../hooks/useEvents';
@@ -26,59 +28,75 @@ const MapView = dynamic(() => import('../components/MapView'), {
 
 export default function Dashboard() {
   const [currentZone, setZone] = useState('Todas');
-  const [showMarkers, setShowMarkers] = useState(false); // Por default oculto
-  const [showRipples, setShowRipples] = useState(true);
-  const [showTimeline, setShowTimeline] = useState(true);
-  const [showFeed, setShowFeed] = useState(false); // Por default oculto
+  const [showMarkers, setShowMarkers] = useState(false); 
+  const [showRipples, setShowRipples] = useState(true); // Ondas expansivas por defecto
+  const [showTimeline, setShowTimeline] = useState(true); // Gráfica de línea de tiempo por defecto
+  const [showSequencer, setShowSequencer] = useState(false); // Secuenciador oculto por defecto
+  const [showOscilloscope, setShowOscilloscope] = useState(true); // Osciloscopio por defecto
+  const [showFeed, setShowFeed] = useState(false); 
   const [activeRipples, setActiveRipples] = useState([]);
   const [showWelcome, setShowWelcome] = useState(true); // Modal inicial
   const [showMobileMenu, setShowMobileMenu] = useState(false); // Menú responsivo
   const [showTimer, setShowTimer] = useState(false); // Timer visual al centro
-  
+  const [scheduledEventsList, setScheduledEventsList] = useState([]); // Eventos programados para el loop actual
   
   // Hook de sonificación (Tone.js)
-  const { isReady: audioReady, initAudio, stopAudio, playBeatAudio, playTick } = useSonification();
+  const { 
+    isReady: audioReady, 
+    initAudio, 
+    stopAudio, 
+    scheduleEvents, 
+    playTick,
+    setOnRipple,
+    analyser,
+    getTransportSeconds
+  } = useSonification();
   
-  // Polling de estaciones cada 8s para sincronizar con el colector y actualizar la hora
-  const { stations, loading: loadingStations, error: stationError, lastUpdate } = useStations(8000);
+  // Registrar el callback de ripples sincronizado con Tone.Draw
+  useEffect(() => {
+    setOnRipple((event) => {
+      // Limpiar ripples viejos y añadir el nuevo
+      setActiveRipples(prev => {
+        const filtered = prev.filter(r => Date.now() - r.timestampMs < 1500);
+        return [...filtered, { ...event, timestampMs: Date.now() }];
+      });
+    });
+  }, [setOnRipple]);
+
+  // Polling de estaciones cada 28s para que los datos lleguen antes de terminar el compás de 32s
+  const { stations, loading: loadingStations, error: stationError, lastUpdate } = useStations(28000);
   
   // Secuenciador maestro
   const handleNewEvents = (newEvents) => {
+    // Limpiar las animaciones de ripples que quedaron del compás anterior
+    setActiveRipples([]);
+    
     // Enriquecer eventos con la zona (municipio) leyendo de stations
     const enrichedEvents = newEvents.map(e => {
        const station = stations.find(s => s.id === e.station_id);
        return { ...e, zone: station ? station.region : 'GDL' }; // Por defecto GDL
     });
 
-    // 1. Crear una partitura (score) de 8 tiempos (0 a 7)
-    const score = Array.from({ length: 8 }, () => []);
-    enrichedEvents.forEach(e => {
-       const beat = e.beat !== undefined ? e.beat : Math.floor(Math.random() * 8);
-       score[beat].push(e);
-    });
-
-    // 2. Ejecutar la partitura usando setTimeouts precisos
-    score.forEach((eventsInBeat, beat) => {
-      setTimeout(() => {
-        // Sonar el metrónomo (tick) si el timer visual está activo
-        if (showTimer) {
-          playTick(beat);
-        }
-
-        // A. Sonar (Tone.js usa su propio reloj de alta precisión, pero lo disparamos aquí)
-        if (eventsInBeat.length > 0) {
-           playBeatAudio(eventsInBeat, beat);
-        }
-        
-        // B. Visualizar (El mapa reacciona inmediatamente al state)
-        // Solo guardamos los ripples de este segundo exacto
-        setActiveRipples(eventsInBeat);
-      }, beat * 1000); // 1000ms = 1 segundo por beat
-    });
+    // Delegamos la programación de audio y animación a Tone.js
+    if (audioReady) {
+      const scheduled = scheduleEvents(enrichedEvents);
+      setScheduledEventsList(scheduled || []);
+    }
   };
 
-  // Polling de eventos cada 8s (sincronizado con el collector)
-  const { events, cycleCount } = useEvents(8000, handleNewEvents);
+  // Polling de eventos cada 28s (justo antes de que termine el compás de 32s)
+  const { events, cycleCount } = useEvents(28000, handleNewEvents);
+
+  // Efecto para simular el metrónomo visual si showTimer está activo
+  useEffect(() => {
+    if (!showTimer || !audioReady) return;
+    const interval = setInterval(() => {
+      // Asumimos que playTick usa Tone.now() interno.
+      const beat = Math.floor(Date.now() / 1000) % 32;
+      playTick(beat);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showTimer, audioReady, playTick]);
 
   // Filtrar estaciones por zona
   const filteredStations = useMemo(() => {
@@ -158,6 +176,10 @@ export default function Dashboard() {
           setShowRipples={setShowRipples}
           showTimeline={showTimeline}
           setShowTimeline={setShowTimeline}
+          showSequencer={showSequencer}
+          setShowSequencer={setShowSequencer}
+          showOscilloscope={showOscilloscope}
+          setShowOscilloscope={setShowOscilloscope}
           showFeed={showFeed}
           setShowFeed={setShowFeed}
           showTimer={showTimer}
@@ -167,6 +189,16 @@ export default function Dashboard() {
 
       {/* Timer visual en el centro */}
       {showTimer && <PollingTimer cycleCount={cycleCount} />}
+
+      {/* Osciloscopio full page (pointer-events: none) */}
+      {showOscilloscope && audioReady && analyser && (
+        <Oscilloscope analyser={analyser} isFetching={loadingStations} />
+      )}
+
+      {/* Secuenciador Visual (Piano Roll) */}
+      {showSequencer && audioReady && (
+        <VisualSequencer scheduledEvents={scheduledEventsList} getTransportSeconds={getTransportSeconds} />
+      )}
 
       {/* Gráfica aislada: Siempre visible si está activada, tanto en móvil como desktop */}
       {showTimeline && <TimelineChart events={filteredEvents} />}

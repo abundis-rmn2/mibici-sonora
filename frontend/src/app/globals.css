@@ -99,25 +99,42 @@ body {
 }
 
 /* 
-  Animaciones de rizo (ripple) para el mapa Leaflet.
-  Al animar el stroke-width logramos un efecto de onda expansiva.
+  Animaciones de rizo (ripple) para el mapa Leaflet con HTML elements.
 */
-.ripple-taken {
-  animation: rippleOutTaken 1s ease-out forwards;
-  transform-origin: center;
-}
-.ripple-returned {
-  animation: rippleOutReturned 1s ease-out forwards;
-  transform-origin: center;
+.custom-ripple {
+  /* Quita el background del divIcon por defecto de leaflet */
+  background: transparent;
+  border: none;
 }
 
-@keyframes rippleOutTaken {
-  0% { stroke-width: 0; stroke-opacity: 0.9; }
-  100% { stroke-width: 50px; stroke-opacity: 0; }
+.ripple-ring {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
-@keyframes rippleOutReturned {
-  0% { stroke-width: 0; stroke-opacity: 0.9; }
-  100% { stroke-width: 50px; stroke-opacity: 0; }
+
+.ripple-ring.taken {
+  background-color: var(--color-danger);
+  animation: rippleOutHTML 1s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+}
+
+.ripple-ring.returned {
+  background-color: var(--color-primary);
+  animation: rippleOutHTML 1s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+}
+
+@keyframes rippleOutHTML {
+  0% { 
+    transform: scale(0.5); 
+    opacity: 1; 
+  }
+  100% { 
+    transform: scale(4); 
+    opacity: 0; 
+  }
 }
 
 /* Responsividad para móviles */
