@@ -22,7 +22,7 @@
 # =============================================================================
 
 from pydantic_settings import BaseSettings
-
+from pydantic import field_validator
 
 class Settings(BaseSettings):
     """
@@ -43,6 +43,21 @@ class Settings(BaseSettings):
     DATABASE_URL: str = (
         "postgresql+asyncpg://mibici:mibici_dev@postgres:5432/mibici_sonora"
     )
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_url(cls, v: str | None) -> str:
+        """
+        Corrige automáticamente la URL de la base de datos que entrega Render.
+        Render entrega 'postgres://...' o 'postgresql://...', pero SQLAlchemy Async
+        requiere explícitamente el driver asyncpg ('postgresql+asyncpg://...').
+        """
+        if isinstance(v, str):
+            if v.startswith("postgres://"):
+                v = v.replace("postgres://", "postgresql+asyncpg://", 1)
+            elif v.startswith("postgresql://"):
+                v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     # ---- GBFS ----
     # URL base del feed GBFS v3.0 de MiBici Guadalajara.
