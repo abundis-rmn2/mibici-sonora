@@ -111,7 +111,10 @@ async def on_startup():
     import infrastructure.models  # noqa: F401 — registra los modelos
 
     # Crear tablas si no existen (idempotente)
+    from sqlalchemy import text
     async with engine.begin() as conn:
+        # Habilitar PostGIS primero (esencial en bases de datos nuevas como en Render)
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("✅ API lista. Documentación en: http://localhost:8000/docs")

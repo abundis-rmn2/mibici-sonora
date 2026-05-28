@@ -109,7 +109,9 @@ def init_db():
 
         # create_all() genera el SQL de CREATE TABLE para cada modelo
         # que hereda de Base. Si la tabla ya existe, la ignora.
+        from sqlalchemy import text
         async with engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
             await conn.run_sync(Base.metadata.create_all)
 
         click.echo("✅ Tablas creadas exitosamente:")

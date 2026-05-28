@@ -28,8 +28,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Comando por defecto: levantar SOLO la API con uvicorn.
-# - "adapters.api.main:app" → la app FastAPI vive en adapters/api/main.py
-# - "--host 0.0.0.0" → escuchar en todas las interfaces (necesario en Docker)
-# - "--port 8000" → puerto donde escucha la API
-# - "--reload" → reiniciar automáticamente cuando cambie el código (dev only)
-CMD ["uvicorn", "adapters.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Usamos el modo shell (sh -c) para que lea la variable de entorno $PORT asignada por Render.
+# Si no existe, usa 8000 por defecto.
+CMD sh -c "uvicorn adapters.api.main:app --host 0.0.0.0 --port ${PORT:-8000}"
