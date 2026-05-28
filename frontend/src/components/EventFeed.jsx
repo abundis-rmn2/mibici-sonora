@@ -1,5 +1,98 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+
+// Componente extraído para evitar que se desmonte/monte en cada re-render del padre
+const AccordionGroup = ({ group, groupIndex, formatTime, getStationName }) => {
+  const [isOpen, setIsOpen] = useState(false); // Todo cerrado por defecto
+  const resultado = group.entradas - group.salidas;
+  const isAlternate = groupIndex % 2 === 1;
+  const bgGroup = isAlternate ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.2)';
+  
+  return (
+    <div className="animate-slide-in" style={{
+      background: bgGroup,
+      borderRadius: '8px',
+      padding: '12px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      borderLeft: resultado > 0 ? '3px solid var(--color-primary)' : resultado < 0 ? '3px solid var(--color-danger)' : '3px solid var(--color-text-muted)',
+      animationDelay: `${Math.min(groupIndex * 0.05, 0.5)}s`,
+      transition: 'all 0.3s ease'
+    }}>
+      {/* Header del grupo (Estadísticas y Botón Acordeón) */}
+      <div 
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          borderBottom: isOpen ? '1px solid rgba(255,255,255,0.1)' : 'none', 
+          paddingBottom: isOpen ? '8px' : '0',
+          cursor: 'pointer'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', transition: 'transform 0.3s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+            ▶
+          </span>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{formatTime(group.timestamp)}</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
+          <span style={{ color: 'var(--color-primary)' }}>+{group.entradas}</span>
+          <span style={{ color: 'var(--color-danger)' }}>-{group.salidas}</span>
+          <span style={{ color: 'var(--color-text)', fontWeight: 'bold' }}>Net: {resultado > 0 ? `+${resultado}` : resultado}</span>
+        </div>
+      </div>
+      
+      {/* Eventos del grupo (Contenido del Acordeón) */}
+      {isOpen && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+          {group.events.map((e, i) => {
+            const isTaken = e.event_type === 'bike_taken';
+            const color = isTaken ? 'var(--color-danger)' : 'var(--color-primary)';
+            const icon = isTaken ? '↗' : '↙';
+            const action = isTaken ? 'tomada' : 'devuelta';
+            const plural = e.delta > 1 ? 's' : '';
+            const key = `${e.station_id}-${e.timestamp}-${e.event_type}-${i}`;
+
+            return (
+              <div key={key} style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'center',
+                padding: '4px 0'
+              }}>
+                <div style={{ 
+                  width: '24px', 
+                  height: '24px', 
+                  borderRadius: '50%', 
+                  background: `${color}20`,
+                  color: color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  flexShrink: 0
+                }}>
+                  {icon}
+                </div>
+                
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 500 }}>{getStationName(e.station_id)}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    <span style={{ color: 'var(--color-text)' }}>{e.delta}</span> {action}{plural}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function EventFeed({ events, stations }) {
   // Función helper para formatear hora
@@ -41,55 +134,44 @@ export default function EventFeed({ events, stations }) {
             Esperando eventos...
           </div>
         ) : (
-          events.map((e, i) => {
-            const isTaken = e.event_type === 'bike_taken';
-            const color = isTaken ? 'var(--color-danger)' : 'var(--color-primary)';
-            const icon = isTaken ? '↗' : '↙';
-            const action = isTaken ? 'tomada' : 'devuelta';
-            const plural = e.delta > 1 ? 's' : '';
+          (() => {
+            // Agrupar eventos por timestamp
+            const groups = [];
+            let currentGroup = null;
             
-            // Usamos el ID único (station + timestamp + type) generado en el hook como key si es posible, 
-            // o un fallback compuesto
-            const key = `${e.station_id}-${e.timestamp}-${e.event_type}`;
+            events.forEach(e => {
+              // Agrupar por la "llamada nueva" (lote de eventos) usando fetchTimestamp
+              const groupKey = e.fetchTimestamp || e.timestamp;
+              
+              if (!currentGroup || currentGroup.key !== groupKey) {
+                currentGroup = {
+                  key: groupKey,
+                  timestamp: groupKey, // Tiempo en que llegó el lote
+                  events: [],
+                  entradas: 0,
+                  salidas: 0
+                };
+                groups.push(currentGroup);
+              }
+              
+              currentGroup.events.push(e);
+              if (e.event_type === 'bike_returned') {
+                currentGroup.entradas += e.delta;
+              } else {
+                currentGroup.salidas += e.delta;
+              }
+            });
 
-            return (
-              <div key={key} className="animate-slide-in" style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                borderRadius: '8px',
-                padding: '12px',
-                display: 'flex',
-                gap: '12px',
-                alignItems: 'center',
-                animationDelay: `${Math.min(i * 0.05, 0.5)}s` // Staggered animation
-              }}>
-                <div style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '50%', 
-                  background: `${color}20`, // 20% opacity
-                  color: color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  flexShrink: 0
-                }}>
-                  {icon}
-                </div>
-                
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{getStationName(e.station_id)}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{formatTime(e.timestamp)}</span>
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                    <span style={{ color: 'var(--color-text)' }}>{e.delta}</span> bici{plural} {action}{plural}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+            return groups.map((group, groupIndex) => (
+              <AccordionGroup 
+                key={group.key} 
+                group={group} 
+                groupIndex={groupIndex} 
+                formatTime={formatTime} 
+                getStationName={getStationName} 
+              />
+            ));
+          })()
         )}
       </div>
 

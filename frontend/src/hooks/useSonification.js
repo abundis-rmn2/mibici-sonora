@@ -56,14 +56,26 @@ export function useSonification() {
     // 🟢 Sonido para bike_returned (ARMÓNICO)
     const returnedSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'sine' },
-      envelope: { attack: 0.2, decay: 0.5, sustain: 0.4, release: 2.5 }
-    }).connect(reverbRef.current);
+      envelope: { attack: 0.2, decay: 0.5, sustain: 0.4, release: 1.5 }
+    });
+    returnedSynth.maxPolyphony = 64; // Aumentar límite de voces para evitar "Max polyphony exceeded"
+    returnedSynth.connect(reverbRef.current);
+
+    // ⏱️ Sonido para el Timer / Metrónomo
+    const tickSynth = new Tone.MembraneSynth({
+      pitchDecay: 0.01,
+      octaves: 1,
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 },
+      volume: -12 // Volumen bajo para no ser molesto
+    }).toDestination(); // Directo sin reverb para que sea seco y preciso
 
     synthRef.current = { 
       kick: kickSynth, 
       snare: snareSynth, 
       hihat: hihatSynth, 
-      returned: returnedSynth 
+      returned: returnedSynth,
+      tick: tickSynth
     };
     setIsReady(true);
     isReadyRef.current = true;
@@ -76,6 +88,8 @@ export function useSonification() {
     isReadyRef.current = false;
     // Podríamos desconectar o limpiar synths aquí si fuera necesario
   };
+
+  const lastScheduledRef = useRef({});
 
   const playBeatAudio = (eventsInBeat, beat) => {
     if (!isReadyRef.current || !synthRef.current || eventsInBeat.length === 0) return;
@@ -97,20 +111,32 @@ export function useSonification() {
       noteCounts[noteKey] = count + 1;
       
       // Añadir medio tiempo (0.5 segundos) si hay notas iguales para que no se empalmen
-      const safeTime = time + (count * 0.5);
+      let safeTime = time + (count * 0.5);
 
       if (event.event_type === 'bike_taken') {
+        let synthName = '';
         // Tocar instrumento de percusión distinto según el municipio
         if (event.zone === 'ZPN') {
-           // Zapopan = Tarola (Snare)
-           synthRef.current.snare.triggerAttackRelease("32n", safeTime, velocity * 0.7); // Duración corta y vol un poco más bajo
+           synthName = 'snare';
         } else if (event.zone === 'TLQ') {
-           // Tlaquepaque = Hi-hat
+           synthName = 'hihat';
+        } else {
+           synthName = 'kick';
+        }
+
+        // PREVENIR ERROR DE TONE.JS: "The time must be greater than or equal to the last scheduled time"
+        // Aseguramos que el tiempo sea estrictamente mayor al último programado para ESTE sintetizador
+        if (lastScheduledRef.current[synthName] && safeTime <= lastScheduledRef.current[synthName]) {
+            safeTime = lastScheduledRef.current[synthName] + 0.1; // Desfasar ligeramente hacia el futuro
+        }
+        lastScheduledRef.current[synthName] = safeTime;
+
+        if (synthName === 'snare') {
+           synthRef.current.snare.triggerAttackRelease("32n", safeTime, velocity * 0.7);
+        } else if (synthName === 'hihat') {
            synthRef.current.hihat.triggerAttackRelease("32n", safeTime, velocity * 0.5);
         } else {
-           // Guadalajara = Boom (Kick Drum) - Más intenso
            const isStrongBeat = beat === 0 || beat === 4;
-           // Multiplicamos la velocity por 1.5 para darle más fuerza al golpe
            synthRef.current.kick.triggerAttackRelease(isStrongBeat ? 'C1' : 'G1', duration, safeTime, Math.min(velocity * 1.5, 1));
         }
       } else {
@@ -128,17 +154,32 @@ export function useSonification() {
         
         // Modificar octava del acorde según municipio
         if (event.zone === 'ZPN') {
-           // Zapopan: Armonía más brillante (una octava arriba)
            chord = chord.map(note => note.slice(0, -1) + (parseInt(note.slice(-1)) + 1));
         } else if (event.zone === 'TLQ') {
-           // Tlaquepaque: Armonía más profunda (una octava abajo)
            chord = chord.map(note => note.slice(0, -1) + (parseInt(note.slice(-1)) - 1));
         }
+
+        const synthName = 'returned';
+        if (lastScheduledRef.current[synthName] && safeTime <= lastScheduledRef.current[synthName]) {
+            safeTime = lastScheduledRef.current[synthName] + 0.1;
+        }
+        lastScheduledRef.current[synthName] = safeTime;
 
         synthRef.current.returned.triggerAttackRelease(chord, duration, safeTime, velocity * 0.7);
       }
     });
   };
 
-  return { isReady, initAudio, stopAudio, playBeatAudio };
+  const playTick = (beat) => {
+    if (!isReadyRef.current || !synthRef.current) return;
+    const time = Tone.now();
+    // Beat 0 = Acorde fuerte (inicio del reloj), Beats 1-7 = Acorde débil
+    if (beat === 0) {
+      synthRef.current.tick.triggerAttackRelease("C6", "32n", time, 0.6); // Click fuerte
+    } else {
+      synthRef.current.tick.triggerAttackRelease("G5", "32n", time, 0.2); // Click débil
+    }
+  };
+
+  return { isReady, initAudio, stopAudio, playBeatAudio, playTick };
 }

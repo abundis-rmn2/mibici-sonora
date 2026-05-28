@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: false, // Evita que Leaflet se monte dos veces y cause el error "Map container is being reused"
+  
   // Configuración para evitar CORS en desarrollo local.
   // Las llamadas a /api/* en el frontend serán redirigidas al backend.
   async rewrites() {

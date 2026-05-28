@@ -11,6 +11,7 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cycleCount, setCycleCount] = useState(0); // Para sincronizar animaciones
   
   // Guardar la última referencia de onNewEvents para evitar stale closures
   const onNewEventsRef = useRef(onNewEvents);
@@ -26,6 +27,8 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
 
     async function loadEvents() {
       try {
+        if (isMounted) setCycleCount(prev => prev + 1); // Disparamos el ciclo del compás
+        
         // Pedimos más eventos (usamos el default o máximo del backend) para no perder actividades
         const data = await fetchLatestEvents(200);
         
@@ -42,14 +45,17 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
             
             // Asignar un beat aleatorio (0-7) a cada evento nuevo
             // para que tanto el audio como el mapa se sincronicen en el mismo segundo exacto
+            const fetchTimestamp = new Date().toISOString(); // Identificador del lote (llamada)
             newEvents.forEach(e => {
               e.beat = Math.floor(Math.random() * 8);
+              e.fetchTimestamp = fetchTimestamp;
             });
 
             if (newEvents.length === 0) return prevEvents;
             
-            // Llamar al callback con los eventos que son realmente nuevos
-            if (onNewEventsRef.current && isMounted) {
+            // Llamar al callback SOLAMENTE si no es la carga inicial
+            // (Para evitar sonificar 200 eventos de golpe y saturar Tone.js)
+            if (prevEvents.length > 0 && onNewEventsRef.current && isMounted) {
               console.log(`⚡ [useEvents] Detectados ${newEvents.length} eventos NUEVOS. Enviando al callback.`);
               // Se usa setTimeout para no bloquear el renderizado de React actual
               const callback = onNewEventsRef.current;
@@ -86,5 +92,5 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
     };
   }, [pollIntervalMs]);
 
-  return { events, loading, error };
+  return { events, loading, error, cycleCount };
 }

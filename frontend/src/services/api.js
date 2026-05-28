@@ -6,10 +6,12 @@
    y las peticiones se dirigirán a http://localhost:8000/api/*
    ========================================================================== */
 
-// Usamos directamente la URL pública si existe (producción), si no usamos el proxy local (desarrollo)
+// Usamos la URL pública si existe (producción), directamente el puerto 8000 en desarrollo (local), o la ruta relativa si no.
 const API_BASE = process.env.NEXT_PUBLIC_API_URL 
   ? `${process.env.NEXT_PUBLIC_API_URL}/api` 
-  : '/api';
+  : process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8000/api'
+    : '/api';
 
 /**
  * Obtiene todas las estaciones con su status actual

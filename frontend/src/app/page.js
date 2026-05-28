@@ -8,6 +8,7 @@ import EventFeed from '../components/EventFeed';
 import StatusBar from '../components/StatusBar';
 import ControlsPanel from '../components/ControlsPanel';
 import TimelineChart from '../components/TimelineChart';
+import PollingTimer from '../components/PollingTimer';
 import { useStations } from '../hooks/useStations';
 import { useEvents } from '../hooks/useEvents';
 import { useSonification } from '../hooks/useSonification';
@@ -32,10 +33,11 @@ export default function Dashboard() {
   const [activeRipples, setActiveRipples] = useState([]);
   const [showWelcome, setShowWelcome] = useState(true); // Modal inicial
   const [showMobileMenu, setShowMobileMenu] = useState(false); // Menú responsivo
+  const [showTimer, setShowTimer] = useState(false); // Timer visual al centro
   
   
   // Hook de sonificación (Tone.js)
-  const { isReady: audioReady, initAudio, stopAudio, playBeatAudio } = useSonification();
+  const { isReady: audioReady, initAudio, stopAudio, playBeatAudio, playTick } = useSonification();
   
   // Polling de estaciones cada 8s para sincronizar con el colector y actualizar la hora
   const { stations, loading: loadingStations, error: stationError, lastUpdate } = useStations(8000);
@@ -58,6 +60,11 @@ export default function Dashboard() {
     // 2. Ejecutar la partitura usando setTimeouts precisos
     score.forEach((eventsInBeat, beat) => {
       setTimeout(() => {
+        // Sonar el metrónomo (tick) si el timer visual está activo
+        if (showTimer) {
+          playTick(beat);
+        }
+
         // A. Sonar (Tone.js usa su propio reloj de alta precisión, pero lo disparamos aquí)
         if (eventsInBeat.length > 0) {
            playBeatAudio(eventsInBeat, beat);
@@ -71,7 +78,7 @@ export default function Dashboard() {
   };
 
   // Polling de eventos cada 8s (sincronizado con el collector)
-  const { events } = useEvents(8000, handleNewEvents);
+  const { events, cycleCount } = useEvents(8000, handleNewEvents);
 
   // Filtrar estaciones por zona
   const filteredStations = useMemo(() => {
@@ -153,8 +160,13 @@ export default function Dashboard() {
           setShowTimeline={setShowTimeline}
           showFeed={showFeed}
           setShowFeed={setShowFeed}
+          showTimer={showTimer}
+          setShowTimer={setShowTimer}
         />
       </div>
+
+      {/* Timer visual en el centro */}
+      {showTimer && <PollingTimer cycleCount={cycleCount} />}
 
       {/* Gráfica aislada: Siempre visible si está activada, tanto en móvil como desktop */}
       {showTimeline && <TimelineChart events={filteredEvents} />}

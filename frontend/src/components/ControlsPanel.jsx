@@ -4,7 +4,8 @@ export default function ControlsPanel({
   showMarkers, setShowMarkers, 
   showRipples, setShowRipples,
   showTimeline, setShowTimeline,
-  showFeed, setShowFeed
+  showFeed, setShowFeed,
+  showTimer, setShowTimer
 }) {
   return (
     <div className="glass-panel" style={{
@@ -60,6 +61,16 @@ export default function ControlsPanel({
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
         Panel de Actividad Reciente
+      </label>
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
+        <input 
+          type="checkbox" 
+          checked={showTimer} 
+          onChange={e => setShowTimer(e.target.checked)} 
+          style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
+        />
+        Timer Visual (8 Segundos)
       </label>
     </div>
   );
