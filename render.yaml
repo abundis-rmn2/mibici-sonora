@@ -1,13 +1,12 @@
-services:
+databases:
   # ---------------------------------------------------------------------------
   # 1. Base de Datos (PostgreSQL + PostGIS)
   # ---------------------------------------------------------------------------
-  - type: pgo
-    name: mibici-db
-    plan: free # Puedes cambiar a 'starter' para producción
-    envVars:
-      - key: POSTGRES_VERSION
-        value: 16
+  - name: mibici-db
+    plan: free
+    postgresMajorVersion: 16
+
+services:
 
   # ---------------------------------------------------------------------------
   # 2. Backend API (FastAPI)
