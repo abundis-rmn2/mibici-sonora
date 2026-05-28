@@ -1,11 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Tone from 'tone';
+import { CONFIG } from '../config/constants';
 
 export function useSonification() {
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(false);
   const synthRef = useRef(null);
   const reverbRef = useRef(null);
+  const analyserReturnedRef = useRef(null);
+  const analyserTakenRef = useRef(null);
+  const echoRef = useRef(null); // Ref para el nuevo Echo (FeedbackDelay)
+  const partRef = useRef(null);
+  const onRippleRef = useRef(null); // Ref to hold the current callback
+  const drawCallbackRef = useRef(null); // Ref to hold the draw callback
+
+  // Function to update the callback so Tone.Draw always calls the latest one
+  const setOnRipple = (callback) => {
+    onRippleRef.current = callback;
+  };
 
   const initAudio = async () => {
     if (isReady) {
@@ -14,172 +26,291 @@ export function useSonification() {
     }
     
     console.log('🔈 Inicializando motor de Tone.js...');
-    // Navegadores requieren Tone.start() tras una interacción del usuario
     await Tone.start();
     
-    // HACK PARA iOS: Tocar un sonido inaudible inmediatamente en el mismo hilo de la interacción
-    // para forzar a Safari a "despertar" el motor de audio.
     const unlockSynth = new Tone.Synth().toDestination();
     unlockSynth.triggerAttackRelease("C4", "64n", Tone.now(), 0);
     
-    console.log('🔈 Tone.start() exitoso. Creando sintetizadores...');
+    console.log('🔈 Tone.start() exitoso. Creando sintetizadores techno...');
     
-    // Crear un reverb generoso para dar sensación de "ciudad espaciosa"
+    // Analysers separados para el osciloscopio
+    analyserReturnedRef.current = new Tone.Analyser('waveform', 512);
+    analyserTakenRef.current = new Tone.Analyser('waveform', 512);
+
+    // CRÍTICO: Los analizadores se congelan (freezan) si son un "callejón sin salida" en el grafo de Web Audio.
+    // Para solucionarlo, los conectamos a un canal maestro en completo silencio (Gain = 0) que va al Destination.
+    const keepAliveGain = new Tone.Gain(0).toDestination();
+    analyserReturnedRef.current.connect(keepAliveGain);
+    analyserTakenRef.current.connect(keepAliveGain);
+
     reverbRef.current = new Tone.Reverb({
-      decay: 4,
-      preDelay: 0.1,
+      decay: 8, // Dub reverb (cola muy larga)
+      preDelay: 0.15, // Separación del ataque
+      wet: 0.55 // Mucha presencia ambiental
     }).toDestination();
 
-    // 🔴 Sonidos para bike_taken (PERCUSIÓN MÚLTIPLE)
-    // GDL: Boom (Kick Drum) - Más intenso
+    // Kick Synth (Membrane) - SECCO (Dry) y más agudo
     const kickSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.08,
-      octaves: 6, // Mayor rango de caída = más "Punch"
+      pitchDecay: 0.08, // Curva más natural
+      octaves: 1.5, // Reducir el barrido para que no suene a cohete (peww)
       oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.5, sustain: 0.0, release: 0.8 },
-      volume: 4 // +4 decibeles para mayor intensidad
-    }).connect(reverbRef.current);
-    
-    // ZPN: Tarola (Snare - ruido blanco) - Menos volumen, duración más corta
+      envelope: { attack: 0.001, decay: 0.2, sustain: 0.0, release: 0.2 },
+      volume: -4 // Bajado de volumen a petición
+    });
+    kickSynth.connect(analyserReturnedRef.current); // Al osciloscopio rojo
+    kickSynth.toDestination(); // Directo a la salida (CERO reverb)
+
+    // Snare (Ruido Blanco para Zapopan) - Más corto, seco y con volumen muy reducido
     const snareSynth = new Tone.NoiseSynth({
       noise: { type: 'white' },
-      envelope: { attack: 0.001, decay: 0.1, sustain: 0 }, // decay de 0.2 a 0.1
-      volume: -5 // -5 decibeles
-    }).connect(reverbRef.current);
+      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.08 }, // Envolvente mucho más corta
+      volume: -12 // Bajado aún más (al 70% de lo que estaba antes)
+    });
+    snareSynth.connect(analyserReturnedRef.current);
+    // Eliminada conexión a reverb para hacerlo completamente seco
+    snareSynth.toDestination();
 
-    // TLQ: Hi-hat (ruido rosa corto)
+    // Hi-Hat (Ruido Rosa muy corto para Tlaquepaque) - Mismo sonido, menos volumen
     const hihatSynth = new Tone.NoiseSynth({
       noise: { type: 'pink' },
-      envelope: { attack: 0.001, decay: 0.05, sustain: 0 }
-    }).connect(reverbRef.current);
-    
-    // 🟢 Sonido para bike_returned (ARMÓNICO)
-    const returnedSynth = new Tone.PolySynth(Tone.Synth, {
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.2, decay: 0.5, sustain: 0.4, release: 1.5 }
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
+      volume: -10 // Bajado considerablemente
     });
-    returnedSynth.maxPolyphony = 64; // Aumentar límite de voces para evitar "Max polyphony exceeded"
-    returnedSynth.connect(reverbRef.current);
+    hihatSynth.connect(analyserReturnedRef.current);
+    hihatSynth.connect(reverbRef.current);
+    hihatSynth.toDestination();
 
-    // ⏱️ Sonido para el Timer / Metrónomo
-    const tickSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.01,
-      octaves: 1,
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 },
-      volume: -12 // Volumen bajo para no ser molesto
-    }).toDestination(); // Directo sin reverb para que sea seco y preciso
+    // Crash (Platillo explosivo largo)
+    const crashSynth = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.005, decay: 1.5, sustain: 0, release: 1.5 },
+      volume: -12 // Bajado radicalmente (aprox 44% de lo que estaba antes)
+    });
+    crashSynth.connect(analyserReturnedRef.current);
+    crashSynth.connect(reverbRef.current);
+    crashSynth.toDestination();
+    
+    // Arpegios (FMSynth)
+    const arpSynth = new Tone.PolySynth(Tone.FMSynth, {
+      harmonicity: 3,
+      modulationIndex: 10,
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1.5 },
+      modulation: { type: "square" },
+      modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 0.1 },
+      volume: 2 // Subir volumen para que ZPN y TLQ resalten
+    });
+    arpSynth.maxPolyphony = 32;
+
+    // Mucho mucho Echo (Feedback Delay) exclusivo para los arpegios
+    echoRef.current = new Tone.FeedbackDelay({
+      delayTime: "4n.", // Delay con ritmo con puntillo
+      feedback: 0.65, // Muchas repeticiones
+      wet: 0.6 // Volumen alto del eco
+    }).connect(reverbRef.current); // El eco va al Dub Reverb para expandirse aún más
+
+    // Conectar el Echo al analizador verde para que visualice también las colas del delay
+    echoRef.current.connect(analyserTakenRef.current);
+
+    arpSynth.connect(echoRef.current); // Al Echo Masivo
+    // arpSynth pasa a través del Echo, el cual alimenta tanto al analizador como al reverb.
+
+    // Tick/Metronome (Cambiado a Synth simple para evitar que suene como bombo extra)
+    const tickSynth = new Tone.Synth({
+      oscillator: { type: 'square' },
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
+      volume: -16
+    }).toDestination();
 
     synthRef.current = { 
       kick: kickSynth, 
-      snare: snareSynth, 
-      hihat: hihatSynth, 
-      returned: returnedSynth,
+      snare: snareSynth,
+      hihat: hihatSynth,
+      crash: crashSynth,
+      arp: arpSynth,
       tick: tickSynth
     };
+
+    // Configurar Transport de Tone.js (loop de CONFIG.LOOP_DURATION_SECONDS segundos = compases a 60 bpm)
+    // 60 BPM = 1 beat por segundo. Loop de LOOP_DURATION_SECONDS beats.
+    Tone.Transport.bpm.value = 60; 
+    Tone.Transport.loop = true;
+    Tone.Transport.loopStart = 0;
+    Tone.Transport.loopEnd = CONFIG.LOOP_DURATION_SECONDS;
+    
     setIsReady(true);
     isReadyRef.current = true;
-    console.log('🔈 Motor de audio LISTO para sonar.');
+    
+    // Tone.Transport.start(); // Iniciar el bucle solo después del primer fetch y la primera partitura
+    console.log('🔈 Motor de audio LISTO, esperando primer fetch para iniciar loop.');
   };
 
   const stopAudio = () => {
     console.log('🔈 Deteniendo audio.');
+    Tone.Transport.stop();
     setIsReady(false);
     isReadyRef.current = false;
-    // Podríamos desconectar o limpiar synths aquí si fuera necesario
   };
 
-  const lastScheduledRef = useRef({});
+  const transportStartedRef = useRef(false);
 
-  const playBeatAudio = (eventsInBeat, beat) => {
-    if (!isReadyRef.current || !synthRef.current || eventsInBeat.length === 0) return;
+  const scheduleEvents = (enrichedEvents) => {
+    if (!isReadyRef.current || !synthRef.current) return [];
     
-    // Todos los eventos en este beat se tocan "ahora"
-    const time = Tone.now();
-    
-    // Diccionario para contar cuántas veces suena el mismo tipo de evento (nota) en este beat
-    const noteCounts = {};
-    
-    eventsInBeat.forEach((event, i) => {
-      const delta = event.delta || 1;
-      const duration = delta === 1 ? '8n' : delta <= 3 ? '4n' : '2n';
-      const velocity = Math.min(0.5 + (delta * 0.1), 1); 
-      
-      // Identificador único para saber si es la misma "nota" o sintetizador
-      const noteKey = `${event.event_type}-${event.zone}`;
-      const count = noteCounts[noteKey] || 0;
-      noteCounts[noteKey] = count + 1;
-      
-      // Añadir medio tiempo (0.5 segundos) si hay notas iguales para que no se empalmen
-      let safeTime = time + (count * 0.5);
+    // Limpiar partitura anterior si existe
+    if (partRef.current) {
+      partRef.current.dispose();
+    }
 
-      if (event.event_type === 'bike_taken') {
-        let synthName = '';
-        // Tocar instrumento de percusión distinto según el municipio
+    const eventsToSchedule = [];
+
+    // Agrupar por categoría (tipo + zona) para no empalmarlos
+    const groups = {};
+    enrichedEvents.forEach(e => {
+       const key = `${e.event_type}-${e.zone}`;
+       if (!groups[key]) groups[key] = [];
+       groups[key].push(e);
+    });
+
+    // Distribuir equitativamente cada grupo a lo largo del compás de CONFIG.LOOP_DURATION_SECONDS
+    Object.keys(groups).forEach(key => {
+       const groupEvents = groups[key];
+       const count = groupEvents.length;
+       const step = CONFIG.LOOP_DURATION_SECONDS / count; // El espacio exacto entre cada nota de esta categoría
+       
+       groupEvents.forEach((event, i) => {
+         // Calculamos el tiempo exacto. Añadimos más "humanize" (swing aleatorio) para que no suene tan rígido
+         let timeInSeconds = (i * step) + (Math.random() * 0.25) - 0.1; // +/- aleatoriedad
+         
+         // Desfase de medio segundo para los puntos rojos/bicis ancladas (contratiempo)
+         if (event.event_type === 'bike_returned') {
+           timeInSeconds += 0.5;
+         }
+
+         if (timeInSeconds >= CONFIG.LOOP_DURATION_SECONDS) timeInSeconds -= CONFIG.LOOP_DURATION_SECONDS; // Prevenir desbordamiento del loop
+         if (timeInSeconds < 0) timeInSeconds += CONFIG.LOOP_DURATION_SECONDS;
+         
+         const delta = event.delta || 1;
+         const duration = delta === 1 ? '8n' : delta <= 3 ? '4n' : '2n';
+         // Aleatorizar un poco el volumen (velocity) para que suene más orgánico
+         const velocity = Math.min(0.4 + (Math.random() * 0.3) + (delta * 0.1), 1); 
+
+         eventsToSchedule.push({ time: timeInSeconds, event, duration, velocity });
+       });
+    });
+
+    partRef.current = new Tone.Part((time, value) => {
+      const { event, duration, velocity } = value;
+      
+      // Invertido a petición: Bicis devueltas (bike_returned) suenan como percusión (batería rítmica)
+      if (event.event_type === 'bike_returned') {
+        // Añadir "groove" extra: pequeño desfase aleatorio para las percusiones
+        const jitter = (Math.random() * 0.15) - 0.075; 
+        const playTime = time + jitter;
+
         if (event.zone === 'ZPN') {
-           synthName = 'snare';
+           // Zapopan: Snare
+           synthRef.current.snare.triggerAttackRelease("8n", playTime, velocity);
         } else if (event.zone === 'TLQ') {
-           synthName = 'hihat';
+           // Tlaquepaque: Crash (Reemplaza al Hi-Hat a petición)
+           synthRef.current.crash.triggerAttackRelease("2n", playTime, velocity * 0.7);
         } else {
-           synthName = 'kick';
-        }
-
-        // PREVENIR ERROR DE TONE.JS: "The time must be greater than or equal to the last scheduled time"
-        // Aseguramos que el tiempo sea estrictamente mayor al último programado para ESTE sintetizador
-        if (lastScheduledRef.current[synthName] && safeTime <= lastScheduledRef.current[synthName]) {
-            safeTime = lastScheduledRef.current[synthName] + 0.1; // Desfasar ligeramente hacia el futuro
-        }
-        lastScheduledRef.current[synthName] = safeTime;
-
-        if (synthName === 'snare') {
-           synthRef.current.snare.triggerAttackRelease("32n", safeTime, velocity * 0.7);
-        } else if (synthName === 'hihat') {
-           synthRef.current.hihat.triggerAttackRelease("32n", safeTime, velocity * 0.5);
-        } else {
-           const isStrongBeat = beat === 0 || beat === 4;
-           synthRef.current.kick.triggerAttackRelease(isStrongBeat ? 'C1' : 'G1', duration, safeTime, Math.min(velocity * 1.5, 1));
+           // GDL - Kick (Afinación más aguda a petición)
+           const kickPitches = ['C3', 'D3', 'E3', 'G3'];
+           const randomPitch = kickPitches[Math.floor(Math.random() * kickPitches.length)];
+           synthRef.current.kick.triggerAttackRelease(randomPitch, duration, playTime, velocity);
         }
       } else {
-        const chordProgression = [
-          ['C4', 'E4', 'G4', 'B4'], // Beat 0,1: Cmaj7
-          ['C4', 'E4', 'G4', 'B4'], 
-          ['A3', 'C4', 'E4', 'G4'], // Beat 2,3: Amin7
-          ['A3', 'C4', 'E4', 'G4'], 
-          ['F3', 'A3', 'C4', 'E4'], // Beat 4,5: Fmaj7
-          ['F3', 'A3', 'C4', 'E4'], 
-          ['G3', 'B3', 'D4', 'F4'], // Beat 6,7: Gdom7
-          ['G3', 'B3', 'D4', 'F4']
-        ];
-        let chord = chordProgression[beat] || chordProgression[0];
-        
-        // Modificar octava del acorde según municipio
-        if (event.zone === 'ZPN') {
-           chord = chord.map(note => note.slice(0, -1) + (parseInt(note.slice(-1)) + 1));
-        } else if (event.zone === 'TLQ') {
-           chord = chord.map(note => note.slice(0, -1) + (parseInt(note.slice(-1)) - 1));
-        }
+        // Invertido: Bicis tomadas (bike_taken) suenan como Arpegios (melódico)
+        const baseOctave = event.zone === 'ZPN' ? 5 : event.zone === 'TLQ' ? 3 : 4;
+        const notes = ['C', 'D', 'E', 'G', 'A']; // Pentatonic
+        // Use hash of station ID or something to pick a note
+        const noteIndex = event.station_id ? parseInt(event.station_id) % notes.length : 0;
+        const noteName = notes[noteIndex];
+        const mainNote = `${noteName}${baseOctave}`;
 
-        const synthName = 'returned';
-        if (lastScheduledRef.current[synthName] && safeTime <= lastScheduledRef.current[synthName]) {
-            safeTime = lastScheduledRef.current[synthName] + 0.1;
-        }
-        lastScheduledRef.current[synthName] = safeTime;
+        // Nota principal
+        synthRef.current.arp.triggerAttackRelease(mainNote, "16n", time, velocity * 0.7);
 
-        synthRef.current.returned.triggerAttackRelease(chord, duration, safeTime, velocity * 0.7);
+        // "una nota abajo a y medio segundo despues para darle otra profundidad"
+        const lowerNote = `${noteName}${baseOctave - 1}`;
+        synthRef.current.arp.triggerAttackRelease(lowerNote, "8n", time + 0.5, velocity * 0.5);
       }
-    });
+
+      // Sincronización Visual: Programar el ripple en el mapa usando Tone.Draw
+      Tone.Draw.schedule(() => {
+        if (onRippleRef.current) {
+          onRippleRef.current(event);
+        }
+      }, time);
+
+    }, eventsToSchedule).start(0);
+    
+    // Iniciar Transport una sola vez después de la primera partitura
+    if (!transportStartedRef.current) {
+      Tone.Transport.start();
+      transportStartedRef.current = true;
+      console.log('🔈 Transport iniciado después del primer fetch/partitura.');
+    }
+
+    // Resincronizar el playhead para que inicie la partitura desde cero
+    // y evitar desfases entre el setInterval (polling) y el loop de Tone.js
+    Tone.Transport.seconds = 0;
+
+    return eventsToSchedule;
   };
 
   const playTick = (beat) => {
     if (!isReadyRef.current || !synthRef.current) return;
     const time = Tone.now();
-    // Beat 0 = Acorde fuerte (inicio del reloj), Beats 1-7 = Acorde débil
     if (beat === 0) {
-      synthRef.current.tick.triggerAttackRelease("C6", "32n", time, 0.6); // Click fuerte
+      synthRef.current.tick.triggerAttackRelease("C6", "32n", time, 0.6);
     } else {
-      synthRef.current.tick.triggerAttackRelease("G5", "32n", time, 0.2); // Click débil
+      synthRef.current.tick.triggerAttackRelease("G5", "32n", time, 0.2);
     }
   };
 
-  return { isReady, initAudio, stopAudio, playBeatAudio, playTick };
+  const testSound = (type) => {
+    if (!isReadyRef.current || !synthRef.current) return;
+    const time = Tone.now();
+    
+    switch (type) {
+      case 'kick':
+        synthRef.current.kick.triggerAttackRelease("D3", "8n", time, 1);
+        break;
+      case 'hihat':
+        synthRef.current.hihat.triggerAttackRelease("16n", time, 1);
+        break;
+      case 'snare':
+        synthRef.current.snare.triggerAttackRelease("8n", time, 1);
+        break;
+      case 'crash':
+        synthRef.current.crash.triggerAttackRelease("2n", time, 1);
+        break;
+      case 'arp':
+        synthRef.current.arp.triggerAttackRelease("C4", "16n", time, 0.8);
+        synthRef.current.arp.triggerAttackRelease("C3", "8n", time + 0.5, 0.5);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Expose Tone.Transport.seconds for the sequencer
+  const getTransportSeconds = () => {
+    return isReadyRef.current ? Tone.Transport.seconds : 0;
+  };
+
+  return { 
+    isReady, 
+    initAudio, 
+    stopAudio, 
+    scheduleEvents, 
+    playTick, 
+    testSound,
+    setOnRipple,
+    analyserReturned: analyserReturnedRef.current,
+    analyserTaken: analyserTakenRef.current,
+    getTransportSeconds
+  };
 }

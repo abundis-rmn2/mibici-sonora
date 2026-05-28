@@ -1,4 +1,5 @@
 'use client';
+import { CONFIG } from '../config/constants';
 
 export default function StatusBar({ lastUpdate, connected }) {
   const formatTime = (date) => {
@@ -33,7 +34,7 @@ export default function StatusBar({ lastUpdate, connected }) {
       <div style={{ width: '1px', height: '12px', background: 'var(--color-border)' }} />
       
       <div>
-        Auto-refresh: 8s
+        Auto-refresh: {CONFIG.POLLING_INTERVAL_MS / 1000}s
       </div>
       
       <div style={{ width: '1px', height: '12px', background: 'var(--color-border)' }} />
