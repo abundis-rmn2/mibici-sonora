@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import { CONFIG } from '../config/constants';
 
-export default function Oscilloscope({ analyser, isFetching }) {
+export default function Oscilloscope({ analyserReturned, analyserTaken, isFetching }) {
   const canvasRef = useRef(null);
   const requestRef = useRef();
 
   useEffect(() => {
-    if (!analyser) return;
+    if (!analyserReturned || !analyserTaken) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -41,41 +42,45 @@ export default function Oscilloscope({ analyser, isFetching }) {
 
       ctx.clearRect(0, 0, width, height);
 
-      // Obtener datos de la forma de onda
-      const values = analyser.getValue();
-      const bufferLength = values.length;
-      
-      ctx.beginPath();
-      // Hacer el anillo más grueso e intenso (y cambiar el color levemente si está haciendo fetch)
-      ctx.strokeStyle = isFetching ? 'rgba(0, 201, 167, 0.8)' : 'rgba(255, 255, 255, 0.6)'; // Verde al fetchear
-      ctx.lineWidth = isFetching ? 8 : 6; 
+      // Función para dibujar un anillo analizador
+      const drawRing = (analyser, color, sizeRatio) => {
+        const values = analyser.getValue();
+        const bufferLength = values.length;
+        
+        ctx.beginPath();
+        // Durante el fetch, podemos engrosar la línea en lugar de usar ruido
+        ctx.strokeStyle = color; 
+        ctx.lineWidth = isFetching ? 6 : 4; 
 
-      for (let i = 0; i < bufferLength; i++) {
-        // Mapear el índice a un ángulo (de 0 a 2PI)
-        const angle = (i / bufferLength) * Math.PI * 2;
-        
-        // Ruido blanco visual para movimiento continuo, mucho más intenso durante el fetch
-        const noiseAmount = isFetching ? 0.15 : 0.03; 
-        const noise = (Math.random() - 0.5) * (baseRadius * noiseAmount);
-        
-        // values[i] va de -1 a 1. Lo multiplicamos por un factor de deformación.
-        const deformation = values[i] * (baseRadius * 0.5);
-        
-        // Sumamos el radio base, la onda de audio y el ruido constante
-        const r = baseRadius + deformation + noise;
-        
-        const x = centerX + r * Math.cos(angle);
-        const y = centerY + r * Math.sin(angle);
+        const ringRadius = baseRadius * sizeRatio;
 
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
+        for (let i = 0; i < bufferLength; i++) {
+          const angle = (i / bufferLength) * Math.PI * 2;
+          
+          // Multiplicamos por 1.5 para hacerlo mucho más sensible y dinámico
+          const deformation = values[i] * (ringRadius * 1.5);
+          
+          const r = ringRadius + deformation;
+          
+          const x = centerX + r * Math.cos(angle);
+          const y = centerY + r * Math.sin(angle);
+
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
         }
-      }
-      
-      ctx.closePath();
-      ctx.stroke();
+        
+        ctx.closePath();
+        ctx.stroke();
+      };
+
+      // Dibujar Anillo Verde: Bicis Tomadas (Arpegios) - Tamaño Actual (100%)
+      drawRing(analyserTaken, `rgba(${CONFIG.COLORS.PRIMARY_RGB}, 0.9)`, 1.0);
+
+      // Dibujar Anillo Rojo: Bicis Devueltas (Batería) - Tamaño 66%
+      drawRing(analyserReturned, `rgba(${CONFIG.COLORS.DANGER_RGB}, 0.9)`, 0.66);
 
       requestRef.current = requestAnimationFrame(draw);
     };
@@ -86,7 +91,7 @@ export default function Oscilloscope({ analyser, isFetching }) {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(requestRef.current);
     };
-  }, [analyser]);
+  }, [analyserReturned, analyserTaken, isFetching]);
 
   return (
     <div style={{

@@ -1,4 +1,5 @@
 'use client';
+import { CONFIG } from '../config/constants';
 
 export default function ControlsPanel({ 
   showMarkers, setShowMarkers, 
@@ -32,7 +33,7 @@ export default function ControlsPanel({
           onChange={e => setShowMarkers(e.target.checked)} 
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
-        Puntos Estáticos Visibles
+        Red de MiBici
       </label>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
@@ -42,7 +43,7 @@ export default function ControlsPanel({
           onChange={e => setShowRipples(e.target.checked)} 
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
-        Ondas Expansivas Visibles
+        Actividad de estaciones
       </label>
       
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
@@ -62,7 +63,7 @@ export default function ControlsPanel({
           onChange={e => setShowSequencer(e.target.checked)} 
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
-        Secuenciador Visual (Piano Roll)
+        Partitura de Eventos
       </label>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
@@ -82,7 +83,7 @@ export default function ControlsPanel({
           onChange={e => setShowFeed(e.target.checked)} 
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
-        Panel de Actividad Reciente
+        Registro de actividad en Estaciones
       </label>
 
       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
@@ -92,7 +93,7 @@ export default function ControlsPanel({
           onChange={e => setShowTimer(e.target.checked)} 
           style={{ accentColor: 'var(--color-primary)', width: '16px', height: '16px' }}
         />
-        Timer Visual (8 Segundos)
+        Metrónomo ({CONFIG.LOOP_DURATION_SECONDS} Segundos)
       </label>
     </div>
   );

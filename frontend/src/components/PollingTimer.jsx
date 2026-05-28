@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { CONFIG } from '../config/constants';
 
 export default function PollingTimer({ cycleCount }) {
   // El key será directamente el cycleCount que viene desde useEvents
-  // Cada vez que cambia (cada 8s cuando el backend es consultado),
+  // Cada vez que cambia (basado en POLLING_INTERVAL_MS),
   // el SVG se vuelve a montar y la animación CSS 'fillTimer' inicia de nuevo exactamente sincronizada
   const key = cycleCount || 0;
 
@@ -52,7 +53,7 @@ export default function PollingTimer({ cycleCount }) {
           style={{
             strokeDasharray: circumference,
             strokeDashoffset: circumference,
-            animation: 'fillTimer 8s linear infinite'
+            animation: `fillTimer ${CONFIG.POLLING_INTERVAL_MS / 1000}s linear infinite`
           }}
         />
       </svg>
@@ -64,7 +65,7 @@ export default function PollingTimer({ cycleCount }) {
         textTransform: 'uppercase',
         letterSpacing: '1px'
       }}>
-        8s
+        {CONFIG.POLLING_INTERVAL_MS / 1000}s
       </div>
       
       <style jsx>{`

@@ -4,19 +4,20 @@ import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { CONFIG } from '../config/constants';
 
 /**
  * Determina el color del marcador basado en la disponibilidad
  */
 const getMarkerColor = (bikes, capacity) => {
   // Gris si la estación no tiene datos dinámicos (offline o sin polling aún)
-  if (bikes === null || bikes === undefined) return '#4A4A6A';
+  if (bikes === null || bikes === undefined) return CONFIG.COLORS.OFFLINE;
   
   const ratio = capacity > 0 ? bikes / capacity : 0;
   
-  if (ratio > 0.5) return '#00C9A7'; // Verde (>50%)
-  if (ratio > 0.25) return '#FFD93D'; // Amarillo (25%-50%)
-  return '#FF6B6B'; // Rojo (<25%)
+  if (ratio > 0.5) return CONFIG.COLORS.PRIMARY; // Verde (>50%)
+  if (ratio > 0.25) return CONFIG.COLORS.SECONDARY; // Amarillo (25%-50%)
+  return CONFIG.COLORS.DANGER; // Rojo (<25%)
 };
 
 export default function MapView({ stations, activeRipples = [], showMarkers = true, showRipples = true }) {
@@ -89,24 +90,24 @@ export default function MapView({ stations, activeRipples = [], showMarkers = tr
                 <CircleMarker
                   key={station.id}
                   center={[station.lat, station.lon]}
-                  radius={6}
+                  radius={3}
                   pathOptions={{ 
-                    color: '#0A0E27', // Borde oscuro
-                    weight: 1.5,
+                    color: CONFIG.COLORS.BG_DARK, // Borde oscuro
+                    weight: 1,
                     fillColor: color, 
                     fillOpacity: 0.8 
                   }}
                 >
                   <Popup>
-                  <div style={{ color: '#0A0E27', minWidth: '180px' }}>
+                  <div style={{ color: CONFIG.COLORS.BG_DARK, minWidth: '180px' }}>
                     <h3 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600 }}>{station.name}</h3>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
                       <span>🚲 Disponibles:</span>
-                      <strong style={{ color: '#00C9A7' }}>{station.bikes ?? '?'}</strong>
+                      <strong style={{ color: CONFIG.COLORS.PRIMARY }}>{station.bikes ?? '?'}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
                       <span>🅿️ Docks libres:</span>
-                      <strong style={{ color: '#FFD93D' }}>{station.docks ?? '?'}</strong>
+                      <strong style={{ color: CONFIG.COLORS.SECONDARY }}>{station.docks ?? '?'}</strong>
                     </div>
                     <div style={{ 
                       width: '100%', 

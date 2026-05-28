@@ -15,6 +15,7 @@ import { useStations } from '../hooks/useStations';
 import { useEvents } from '../hooks/useEvents';
 import { useSonification } from '../hooks/useSonification';
 import WelcomeModal from '../components/WelcomeModal';
+import { CONFIG } from '../config/constants';
 
 // Leaflet debe importarse dinámicamente porque usa `window` y rompe SSR
 const MapView = dynamic(() => import('../components/MapView'), { 
@@ -28,17 +29,18 @@ const MapView = dynamic(() => import('../components/MapView'), {
 
 export default function Dashboard() {
   const [currentZone, setZone] = useState('Todas');
-  const [showMarkers, setShowMarkers] = useState(false); 
-  const [showRipples, setShowRipples] = useState(true); // Ondas expansivas por defecto
-  const [showTimeline, setShowTimeline] = useState(true); // Gráfica de línea de tiempo por defecto
-  const [showSequencer, setShowSequencer] = useState(false); // Secuenciador oculto por defecto
-  const [showOscilloscope, setShowOscilloscope] = useState(true); // Osciloscopio por defecto
-  const [showFeed, setShowFeed] = useState(false); 
+  const [showMarkers, setShowMarkers] = useState(CONFIG.DEFAULT_UI_STATE.showMarkers); 
+  const [showRipples, setShowRipples] = useState(CONFIG.DEFAULT_UI_STATE.showRipples); 
+  const [showTimeline, setShowTimeline] = useState(CONFIG.DEFAULT_UI_STATE.showTimeline); 
+  const [showSequencer, setShowSequencer] = useState(CONFIG.DEFAULT_UI_STATE.showSequencer); 
+  const [showOscilloscope, setShowOscilloscope] = useState(CONFIG.DEFAULT_UI_STATE.showOscilloscope); 
+  const [showFeed, setShowFeed] = useState(CONFIG.DEFAULT_UI_STATE.showFeed); 
   const [activeRipples, setActiveRipples] = useState([]);
   const [showWelcome, setShowWelcome] = useState(true); // Modal inicial
   const [showMobileMenu, setShowMobileMenu] = useState(false); // Menú responsivo
-  const [showTimer, setShowTimer] = useState(false); // Timer visual al centro
+  const [showTimer, setShowTimer] = useState(CONFIG.DEFAULT_UI_STATE.showTimer); 
   const [scheduledEventsList, setScheduledEventsList] = useState([]); // Eventos programados para el loop actual
+  const [initialScheduled, setInitialScheduled] = useState(false); // Bandera para la partitura inicial
   
   // Hook de sonificación (Tone.js)
   const { 
@@ -48,7 +50,8 @@ export default function Dashboard() {
     scheduleEvents, 
     playTick,
     setOnRipple,
-    analyser,
+    analyserReturned,
+    analyserTaken,
     getTransportSeconds
   } = useSonification();
   
@@ -63,8 +66,8 @@ export default function Dashboard() {
     });
   }, [setOnRipple]);
 
-  // Polling de estaciones cada 28s para que los datos lleguen antes de terminar el compás de 32s
-  const { stations, loading: loadingStations, error: stationError, lastUpdate } = useStations(28000);
+  // Polling de estaciones (usando configuración central)
+  const { stations, loading: loadingStations, error: stationError, lastUpdate } = useStations(CONFIG.POLLING_INTERVAL_MS);
   
   // Secuenciador maestro
   const handleNewEvents = (newEvents) => {
@@ -84,15 +87,29 @@ export default function Dashboard() {
     }
   };
 
-  // Polling de eventos cada 28s (justo antes de que termine el compás de 32s)
-  const { events, cycleCount } = useEvents(28000, handleNewEvents);
+  // Polling de eventos (usando configuración central)
+  const { events, cycleCount } = useEvents(CONFIG.POLLING_INTERVAL_MS, handleNewEvents);
+
+  // Efecto CRÍTICO: Si el fetch inicial ocurrió antes de que el usuario diera clic a "Iniciar",
+  // esos 20 eventos se perdían porque audioReady era false. Aquí los recuperamos e iniciamos de inmediato.
+  useEffect(() => {
+    if (audioReady && events.length > 0 && !initialScheduled) {
+      // Tomamos los primeros eventos como el "backlog" inicial
+      const enrichedEvents = events.slice(0, 20).map(e => {
+         const station = stations.find(s => s.id === e.station_id);
+         return { ...e, zone: station ? station.region : 'GDL' };
+      });
+      const scheduled = scheduleEvents(enrichedEvents);
+      setScheduledEventsList(scheduled || []);
+      setInitialScheduled(true);
+    }
+  }, [audioReady, events, stations, scheduleEvents, initialScheduled]);
 
   // Efecto para simular el metrónomo visual si showTimer está activo
   useEffect(() => {
     if (!showTimer || !audioReady) return;
     const interval = setInterval(() => {
-      // Asumimos que playTick usa Tone.now() interno.
-      const beat = Math.floor(Date.now() / 1000) % 32;
+      const beat = Math.floor(Date.now() / 1000) % CONFIG.LOOP_DURATION_SECONDS;
       playTick(beat);
     }, 1000);
     return () => clearInterval(interval);
@@ -190,9 +207,13 @@ export default function Dashboard() {
       {/* Timer visual en el centro */}
       {showTimer && <PollingTimer cycleCount={cycleCount} />}
 
-      {/* Osciloscopio full page (pointer-events: none) */}
-      {showOscilloscope && audioReady && analyser && (
-        <Oscilloscope analyser={analyser} isFetching={loadingStations} />
+      {/* Osciloscopios full page (pointer-events: none) */}
+      {showOscilloscope && audioReady && analyserReturned && analyserTaken && (
+        <Oscilloscope 
+          analyserReturned={analyserReturned} 
+          analyserTaken={analyserTaken} 
+          isFetching={loadingStations} 
+        />
       )}
 
       {/* Secuenciador Visual (Piano Roll) */}

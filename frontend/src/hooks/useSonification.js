@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Tone from 'tone';
+import { CONFIG } from '../config/constants';
 
 export function useSonification() {
   const [isReady, setIsReady] = useState(false);
   const isReadyRef = useRef(false);
   const synthRef = useRef(null);
   const reverbRef = useRef(null);
-  const analyserRef = useRef(null);
+  const analyserReturnedRef = useRef(null);
+  const analyserTakenRef = useRef(null);
+  const echoRef = useRef(null); // Ref para el nuevo Echo (FeedbackDelay)
   const partRef = useRef(null);
   const onRippleRef = useRef(null); // Ref to hold the current callback
   const drawCallbackRef = useRef(null); // Ref to hold the draw callback
@@ -30,35 +33,46 @@ export function useSonification() {
     
     console.log('🔈 Tone.start() exitoso. Creando sintetizadores techno...');
     
-    // Analyser para el osciloscopio
-    analyserRef.current = new Tone.Analyser('waveform', 512);
+    // Analysers separados para el osciloscopio
+    analyserReturnedRef.current = new Tone.Analyser('waveform', 512);
+    analyserTakenRef.current = new Tone.Analyser('waveform', 512);
+
+    // CRÍTICO: Los analizadores se congelan (freezan) si son un "callejón sin salida" en el grafo de Web Audio.
+    // Para solucionarlo, los conectamos a un canal maestro en completo silencio (Gain = 0) que va al Destination.
+    const keepAliveGain = new Tone.Gain(0).toDestination();
+    analyserReturnedRef.current.connect(keepAliveGain);
+    analyserTakenRef.current.connect(keepAliveGain);
 
     reverbRef.current = new Tone.Reverb({
-      decay: 4,
-      preDelay: 0.1,
-    }).connect(analyserRef.current);
-    analyserRef.current.toDestination(); // Conectar al master final
+      decay: 8, // Dub reverb (cola muy larga)
+      preDelay: 0.15, // Separación del ataque
+      wet: 0.55 // Mucha presencia ambiental
+    }).toDestination();
 
-    // Kick Synth (Membrane)
+    // Kick Synth (Membrane) - SECCO (Dry) y más agudo
     const kickSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 6,
+      pitchDecay: 0.08, // Curva más natural
+      octaves: 1.5, // Reducir el barrido para que no suene a cohete (peww)
       oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.4, sustain: 0.0, release: 0.8 },
-      volume: 2
-    }).connect(analyserRef.current); // El kick puede ir más seco o con poco reverb
-    kickSynth.toDestination();
+      envelope: { attack: 0.001, decay: 0.2, sustain: 0.0, release: 0.2 },
+      volume: -4 // Bajado de volumen a petición
+    });
+    kickSynth.connect(analyserReturnedRef.current); // Al osciloscopio rojo
+    kickSynth.toDestination(); // Directo a la salida (CERO reverb)
 
-    // Hi-Hats/Snare (MetalSynth)
+    // Hi-Hats/Snare (MetalSynth) para Zapopan y Tlaquepaque
     const metalSynth = new Tone.MetalSynth({
-      frequency: 200,
-      envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
+      frequency: 250,
+      envelope: { attack: 0.001, decay: 0.3, release: 0.1 },
       harmonicity: 5.1,
       modulationIndex: 32,
       resonance: 4000,
       octaves: 1.5,
-      volume: -8
-    }).connect(reverbRef.current);
+      volume: 2 // Bajamos un poco porque el reverb lo inflará
+    });
+    metalSynth.connect(analyserReturnedRef.current); // Al osciloscopio rojo
+    metalSynth.connect(reverbRef.current); // Al Dub Reverb
+    metalSynth.toDestination(); // Para mantener el ataque seco presente
     
     // Arpegios (FMSynth)
     const arpSynth = new Tone.PolySynth(Tone.FMSynth, {
@@ -68,18 +82,28 @@ export function useSonification() {
       envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1.5 },
       modulation: { type: "square" },
       modulationEnvelope: { attack: 0.01, decay: 0.5, sustain: 0.2, release: 0.1 },
-      volume: -5
+      volume: 2 // Subir volumen para que ZPN y TLQ resalten
     });
     arpSynth.maxPolyphony = 32;
-    arpSynth.connect(reverbRef.current);
 
-    // Tick/Metronome
-    const tickSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.01,
-      octaves: 1,
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 },
-      volume: -12
+    // Mucho mucho Echo (Feedback Delay) exclusivo para los arpegios
+    echoRef.current = new Tone.FeedbackDelay({
+      delayTime: "4n.", // Delay con ritmo con puntillo
+      feedback: 0.65, // Muchas repeticiones
+      wet: 0.6 // Volumen alto del eco
+    }).connect(reverbRef.current); // El eco va al Dub Reverb para expandirse aún más
+
+    // Conectar el Echo al analizador verde para que visualice también las colas del delay
+    echoRef.current.connect(analyserTakenRef.current);
+
+    arpSynth.connect(echoRef.current); // Al Echo Masivo
+    // arpSynth pasa a través del Echo, el cual alimenta tanto al analizador como al reverb.
+
+    // Tick/Metronome (Cambiado a Synth simple para evitar que suene como bombo extra)
+    const tickSynth = new Tone.Synth({
+      oscillator: { type: 'square' },
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
+      volume: -16
     }).toDestination();
 
     synthRef.current = { 
@@ -89,12 +113,12 @@ export function useSonification() {
       tick: tickSynth
     };
 
-    // Configurar Transport de Tone.js (loop de 32 segundos = 8 compases a 60 bpm)
-    // 60 BPM = 1 beat por segundo. Loop de 32 beats.
+    // Configurar Transport de Tone.js (loop de CONFIG.LOOP_DURATION_SECONDS segundos = compases a 60 bpm)
+    // 60 BPM = 1 beat por segundo. Loop de LOOP_DURATION_SECONDS beats.
     Tone.Transport.bpm.value = 60; 
     Tone.Transport.loop = true;
     Tone.Transport.loopStart = 0;
-    Tone.Transport.loopEnd = 32;
+    Tone.Transport.loopEnd = CONFIG.LOOP_DURATION_SECONDS;
     
     setIsReady(true);
     isReadyRef.current = true;
@@ -130,20 +154,28 @@ export function useSonification() {
        groups[key].push(e);
     });
 
-    // Distribuir equitativamente cada grupo a lo largo del compás de 32 segundos
+    // Distribuir equitativamente cada grupo a lo largo del compás de CONFIG.LOOP_DURATION_SECONDS
     Object.keys(groups).forEach(key => {
        const groupEvents = groups[key];
        const count = groupEvents.length;
-       const step = 32 / count; // El espacio exacto entre cada nota de esta categoría
+       const step = CONFIG.LOOP_DURATION_SECONDS / count; // El espacio exacto entre cada nota de esta categoría
        
        groupEvents.forEach((event, i) => {
-         // Calculamos el tiempo exacto. Añadimos un minúsculo "humanize" (0.05s) para que no suene a máquina
-         let timeInSeconds = (i * step) + (Math.random() * 0.05);
-         if (timeInSeconds >= 32) timeInSeconds -= 32; // Prevenir desbordamiento del loop
+         // Calculamos el tiempo exacto. Añadimos más "humanize" (swing aleatorio) para que no suene tan rígido
+         let timeInSeconds = (i * step) + (Math.random() * 0.25) - 0.1; // +/- aleatoriedad
+         
+         // Desfase de medio segundo para los puntos rojos/bicis ancladas (contratiempo)
+         if (event.event_type === 'bike_returned') {
+           timeInSeconds += 0.5;
+         }
+
+         if (timeInSeconds >= CONFIG.LOOP_DURATION_SECONDS) timeInSeconds -= CONFIG.LOOP_DURATION_SECONDS; // Prevenir desbordamiento del loop
+         if (timeInSeconds < 0) timeInSeconds += CONFIG.LOOP_DURATION_SECONDS;
          
          const delta = event.delta || 1;
          const duration = delta === 1 ? '8n' : delta <= 3 ? '4n' : '2n';
-         const velocity = Math.min(0.5 + (delta * 0.1), 1); 
+         // Aleatorizar un poco el volumen (velocity) para que suene más orgánico
+         const velocity = Math.min(0.4 + (Math.random() * 0.3) + (delta * 0.1), 1); 
 
          eventsToSchedule.push({ time: timeInSeconds, event, duration, velocity });
        });
@@ -152,25 +184,38 @@ export function useSonification() {
     partRef.current = new Tone.Part((time, value) => {
       const { event, duration, velocity } = value;
       
-      if (event.event_type === 'bike_taken') {
+      // Invertido a petición: Bicis devueltas (bike_returned) suenan como percusión (batería rítmica)
+      if (event.event_type === 'bike_returned') {
+        // Añadir "groove" extra: pequeño desfase aleatorio para las percusiones
+        const jitter = (Math.random() * 0.15) - 0.075; 
+        const playTime = time + jitter;
+
         if (event.zone === 'ZPN') {
-           synthRef.current.metal.triggerAttackRelease("16n", time, velocity);
+           synthRef.current.metal.triggerAttackRelease("16n", playTime, velocity);
         } else if (event.zone === 'TLQ') {
            synthRef.current.metal.set({ envelope: { release: 0.1 } });
-           synthRef.current.metal.triggerAttackRelease("8n", time, velocity * 0.8);
+           synthRef.current.metal.triggerAttackRelease("8n", playTime, velocity * 0.8);
         } else {
-           // GDL - Kick
-           synthRef.current.kick.triggerAttackRelease('C1', duration, time, velocity);
+           // GDL - Kick (Afinación más aguda a petición)
+           const kickPitches = ['C3', 'D3', 'E3', 'G3'];
+           const randomPitch = kickPitches[Math.floor(Math.random() * kickPitches.length)];
+           synthRef.current.kick.triggerAttackRelease(randomPitch, duration, playTime, velocity);
         }
       } else {
-        // bike_returned - Arp
+        // Invertido: Bicis tomadas (bike_taken) suenan como Arpegios (melódico)
         const baseOctave = event.zone === 'ZPN' ? 5 : event.zone === 'TLQ' ? 3 : 4;
         const notes = ['C', 'D', 'E', 'G', 'A']; // Pentatonic
         // Use hash of station ID or something to pick a note
         const noteIndex = event.station_id ? parseInt(event.station_id) % notes.length : 0;
-        const note = `${notes[noteIndex]}${baseOctave}`;
+        const noteName = notes[noteIndex];
+        const mainNote = `${noteName}${baseOctave}`;
 
-        synthRef.current.arp.triggerAttackRelease(note, "16n", time, velocity * 0.7);
+        // Nota principal
+        synthRef.current.arp.triggerAttackRelease(mainNote, "16n", time, velocity * 0.7);
+
+        // "una nota abajo a y medio segundo despues para darle otra profundidad"
+        const lowerNote = `${noteName}${baseOctave - 1}`;
+        synthRef.current.arp.triggerAttackRelease(lowerNote, "8n", time + 0.5, velocity * 0.5);
       }
 
       // Sincronización Visual: Programar el ripple en el mapa usando Tone.Draw
@@ -222,7 +267,8 @@ export function useSonification() {
     scheduleEvents, 
     playTick, 
     setOnRipple,
-    analyser: analyserRef.current,
+    analyserReturned: analyserReturnedRef.current,
+    analyserTaken: analyserTakenRef.current,
     getTransportSeconds
   };
 }

@@ -117,12 +117,14 @@ body {
 }
 
 .ripple-ring.taken {
-  background-color: var(--color-danger);
+  background-color: var(--color-primary); /* Verde */
+  box-shadow: 0 0 15px var(--color-primary);
   animation: rippleOutHTML 1s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
 }
 
 .ripple-ring.returned {
-  background-color: var(--color-primary);
+  background-color: var(--color-danger); /* Rojo */
+  box-shadow: 0 0 15px var(--color-danger);
   animation: rippleOutHTML 1s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
 }
 

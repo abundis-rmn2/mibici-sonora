@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { CONFIG } from '../config/constants';
 
 // Componente extraído para evitar que se desmonte/monte en cada re-render del padre
 const AccordionGroup = ({ group, groupIndex, formatTime, getStationName }) => {
@@ -16,7 +17,7 @@ const AccordionGroup = ({ group, groupIndex, formatTime, getStationName }) => {
       display: 'flex',
       flexDirection: 'column',
       gap: '8px',
-      borderLeft: resultado > 0 ? '3px solid var(--color-primary)' : resultado < 0 ? '3px solid var(--color-danger)' : '3px solid var(--color-text-muted)',
+      borderLeft: resultado > 0 ? `3px solid ${CONFIG.COLORS.PRIMARY}` : resultado < 0 ? `3px solid ${CONFIG.COLORS.DANGER}` : '3px solid var(--color-text-muted)',
       animationDelay: `${Math.min(groupIndex * 0.05, 0.5)}s`,
       transition: 'all 0.3s ease'
     }}>
@@ -39,8 +40,8 @@ const AccordionGroup = ({ group, groupIndex, formatTime, getStationName }) => {
           <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-muted)' }}>{formatTime(group.timestamp)}</span>
         </div>
         <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
-          <span style={{ color: 'var(--color-primary)' }}>+{group.entradas}</span>
-          <span style={{ color: 'var(--color-danger)' }}>-{group.salidas}</span>
+          <span style={{ color: CONFIG.COLORS.PRIMARY }}>+{group.entradas}</span>
+          <span style={{ color: CONFIG.COLORS.DANGER }}>-{group.salidas}</span>
           <span style={{ color: 'var(--color-text)', fontWeight: 'bold' }}>Net: {resultado > 0 ? `+${resultado}` : resultado}</span>
         </div>
       </div>
@@ -50,7 +51,8 @@ const AccordionGroup = ({ group, groupIndex, formatTime, getStationName }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
           {group.events.map((e, i) => {
             const isTaken = e.event_type === 'bike_taken';
-            const color = isTaken ? 'var(--color-danger)' : 'var(--color-primary)';
+            // Invertido: Bicis tomadas = verde (primary), devueltas = rojo (danger)
+            const color = isTaken ? CONFIG.COLORS.PRIMARY : CONFIG.COLORS.DANGER;
             const icon = isTaken ? '↗' : '↙';
             const action = isTaken ? 'tomada' : 'devuelta';
             const plural = e.delta > 1 ? 's' : '';
@@ -121,7 +123,7 @@ export default function EventFeed({ events, stations }) {
     }}>
       <div style={{ padding: '16px 20px', borderBottom: 'var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: '14px', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '1px', margin: 0 }}>
-          Actividad Reciente
+          Registro de Actividad
         </h2>
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-danger)', animation: 'pulse 2s infinite' }} />
