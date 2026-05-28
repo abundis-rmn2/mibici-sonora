@@ -119,3 +119,17 @@ body {
   0% { stroke-width: 0; stroke-opacity: 0.9; }
   100% { stroke-width: 50px; stroke-opacity: 0; }
 }
+
+/* Responsividad para móviles */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  .mobile-only {
+    display: flex !important;
+  }
+}

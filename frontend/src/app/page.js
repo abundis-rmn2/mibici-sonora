@@ -31,6 +31,8 @@ export default function Dashboard() {
   const [showFeed, setShowFeed] = useState(false); // Por default oculto
   const [activeRipples, setActiveRipples] = useState([]);
   const [showWelcome, setShowWelcome] = useState(true); // Modal inicial
+  const [showMobileMenu, setShowMobileMenu] = useState(false); // Menú responsivo
+  
   
   // Hook de sonificación (Tone.js)
   const { isReady: audioReady, initAudio, stopAudio, playBeatAudio } = useSonification();
@@ -98,30 +100,57 @@ export default function Dashboard() {
         }} />
       )}
 
-      {/* UI Superpuesta */}
-      <Header 
-        currentZone={currentZone} 
-        setZone={setZone} 
-        audioReady={audioReady}
-        onToggleAudio={audioReady ? stopAudio : initAudio}
-      />
-      <StatsPanel stations={filteredStations} loading={loadingStations} />
-      
-      <ControlsPanel 
-        showMarkers={showMarkers} 
-        setShowMarkers={setShowMarkers}
-        showRipples={showRipples}
-        setShowRipples={setShowRipples}
-        showTimeline={showTimeline}
-        setShowTimeline={setShowTimeline}
-        showFeed={showFeed}
-        setShowFeed={setShowFeed}
-      />
+      {/* Botón flotante solo para móviles para abrir las opciones */}
+      {!showWelcome && (
+        <button 
+          className="mobile-only glass-panel"
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 9999,
+            width: '56px',
+            height: '56px',
+            borderRadius: '28px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: '#F3F4F6',
+            fontSize: '24px',
+            justifyContent: 'center',
+            alignItems: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+          }}
+        >
+          {showMobileMenu ? '✕' : '⚙️'}
+        </button>
+      )}
 
-      {showTimeline && <TimelineChart events={filteredEvents} />}
+      {/* UI Superpuesta (oculta en móviles por defecto) */}
+      <div className={showMobileMenu ? '' : 'mobile-hidden'}>
+        <Header 
+          currentZone={currentZone} 
+          setZone={setZone} 
+          audioReady={audioReady}
+          onToggleAudio={audioReady ? stopAudio : initAudio}
+        />
+        <StatsPanel stations={filteredStations} loading={loadingStations} />
+        
+        <ControlsPanel 
+          showMarkers={showMarkers} 
+          setShowMarkers={setShowMarkers}
+          showRipples={showRipples}
+          setShowRipples={setShowRipples}
+          showTimeline={showTimeline}
+          setShowTimeline={setShowTimeline}
+          showFeed={showFeed}
+          setShowFeed={setShowFeed}
+        />
 
-      {showFeed && <EventFeed events={filteredEvents} stations={stations} />}
-      <StatusBar lastUpdate={lastUpdate} connected={!stationError} />
+        {showTimeline && <TimelineChart events={filteredEvents} />}
+        {showFeed && <EventFeed events={filteredEvents} stations={stations} />}
+        <StatusBar lastUpdate={lastUpdate} connected={!stationError} />
+      </div>
 
       {/* Mapa en el fondo */}
       <MapView 
