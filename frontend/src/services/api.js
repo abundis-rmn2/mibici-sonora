@@ -6,7 +6,10 @@
    y las peticiones se dirigirán a http://localhost:8000/api/*
    ========================================================================== */
 
-const API_BASE = '/api';
+// Usamos directamente la URL pública si existe (producción), si no usamos el proxy local (desarrollo)
+const API_BASE = process.env.NEXT_PUBLIC_API_URL 
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api` 
+  : '/api';
 
 /**
  * Obtiene todas las estaciones con su status actual
