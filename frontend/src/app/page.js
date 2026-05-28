@@ -110,24 +110,27 @@ export default function Dashboard() {
             bottom: '20px',
             right: '20px',
             zIndex: 9999,
-            width: '56px',
-            height: '56px',
-            borderRadius: '28px',
+            padding: '0 24px',
+            height: '48px',
+            borderRadius: '24px',
             border: '1px solid rgba(255,255,255,0.2)',
             color: '#F3F4F6',
-            fontSize: '24px',
+            fontSize: '16px',
+            fontWeight: '600',
+            display: 'flex', // Necesario para gap y centrado
             justifyContent: 'center',
             alignItems: 'center',
             cursor: 'pointer',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            gap: '8px'
           }}
         >
-          {showMobileMenu ? '✕' : '⚙️'}
+          {showMobileMenu ? '✕ Cerrar' : '⚙️ Opciones'}
         </button>
       )}
 
-      {/* UI Superpuesta (oculta en móviles por defecto) */}
-      <div className={showMobileMenu ? '' : 'mobile-hidden'}>
+      {/* Elementos ocultos permanentemente en móvil para ahorrar espacio */}
+      <div className="mobile-hidden">
         <Header 
           currentZone={currentZone} 
           setZone={setZone} 
@@ -135,7 +138,12 @@ export default function Dashboard() {
           onToggleAudio={audioReady ? stopAudio : initAudio}
         />
         <StatsPanel stations={filteredStations} loading={loadingStations} />
+        {showFeed && <EventFeed events={filteredEvents} stations={stations} />}
+        <StatusBar lastUpdate={lastUpdate} connected={!stationError} />
+      </div>
         
+      {/* Panel de Controles (Visible en desktop siempre, en móvil solo si el menú está abierto) */}
+      <div className={showMobileMenu ? '' : 'mobile-hidden'}>
         <ControlsPanel 
           showMarkers={showMarkers} 
           setShowMarkers={setShowMarkers}
@@ -146,11 +154,10 @@ export default function Dashboard() {
           showFeed={showFeed}
           setShowFeed={setShowFeed}
         />
-
-        {showTimeline && <TimelineChart events={filteredEvents} />}
-        {showFeed && <EventFeed events={filteredEvents} stations={stations} />}
-        <StatusBar lastUpdate={lastUpdate} connected={!stationError} />
       </div>
+
+      {/* Gráfica aislada: Siempre visible si está activada, tanto en móvil como desktop */}
+      {showTimeline && <TimelineChart events={filteredEvents} />}
 
       {/* Mapa en el fondo */}
       <MapView 
