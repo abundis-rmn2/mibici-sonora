@@ -1,0 +1,48 @@
+# =============================================================================
+# MiBici Sonora — Dependencias de Python
+# =============================================================================
+# Cada dependencia está documentada con su propósito en el proyecto.
+# Usamos versiones mínimas (>=) para flexibilidad, no versiones exactas.
+# =============================================================================
+
+# ---- Framework Web ----
+# FastAPI: framework moderno y rápido para APIs REST.
+# Genera documentación automática (Swagger) en /docs
+fastapi>=0.115
+
+# Uvicorn: servidor ASGI para correr FastAPI.
+# [standard] incluye uvloop (más rápido) y httptools.
+uvicorn[standard]>=0.30
+
+# ---- Cliente HTTP ----
+# httpx: cliente HTTP async/sync para consumir la API GBFS de MiBici.
+# Similar a requests pero con soporte nativo para async.
+httpx>=0.27
+
+# ---- Scheduler ----
+# APScheduler: programador de tareas para el polling periódico.
+# Permite ejecutar funciones cada N segundos de forma confiable.
+apscheduler>=3.10
+
+# ---- Base de Datos ----
+# SQLAlchemy: ORM para interactuar con PostgreSQL.
+# Versión 2.0+ tiene API moderna con tipado y soporte async nativo.
+sqlalchemy[asyncio]>=2.0
+
+# asyncpg: driver PostgreSQL async de alto rendimiento.
+# SQLAlchemy lo usa internamente para las operaciones async.
+asyncpg>=0.29
+
+# GeoAlchemy2: extensión de SQLAlchemy para PostGIS.
+# Permite trabajar con columnas geométricas (puntos, polígonos, etc.)
+geoalchemy2>=0.15
+
+# ---- Configuración ----
+# pydantic-settings: carga variables de entorno como objetos Python tipados.
+# Hereda de Pydantic, así que valida tipos automáticamente.
+pydantic-settings>=2.0
+
+# ---- CLI ----
+# click: framework para crear comandos de línea de comandos.
+# Más elegante que argparse, con decoradores y ayuda automática.
+click>=8.1
