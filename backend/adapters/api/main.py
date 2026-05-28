@@ -145,6 +145,32 @@ async def root():
 
 
 # =============================================================================
+# Endpoint: Admin Sync Stations (Alternativa al CLI en Render)
+# =============================================================================
+@app.get("/api/admin/sync-stations", tags=["Admin"], summary="Sincronizar estaciones")
+async def admin_sync_stations():
+    """
+    Sincroniza las estaciones de MiBici desde la API GBFS hacia la base de datos.
+    Útil en entornos de nube gratuitos (como Render) donde no hay acceso a la consola/shell
+    para ejecutar el comando CLI.
+    """
+    try:
+        container = get_container()
+        count = await container.sync_stations.execute()
+        return {
+            "status": "success",
+            "message": f"Se sincronizaron exitosamente {count} estaciones.",
+            "instructions": "La base de datos ya tiene el mapa. El worker empezará a guardar eventos en breve."
+        }
+    except Exception as e:
+        logger.error(f"❌ Error al sincronizar estaciones vía API: {e}")
+        return {
+            "status": "error",
+            "message": f"Hubo un error al sincronizar: {str(e)}"
+        }
+
+
+# =============================================================================
 # Endpoint: Health Check Principal
 # =============================================================================
 @app.get(
