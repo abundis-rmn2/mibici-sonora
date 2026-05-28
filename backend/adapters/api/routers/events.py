@@ -33,8 +33,8 @@ async def get_latest_events(
     limit: int = Query(
         default=50,
         ge=1,
-        le=200,
-        description="Máximo de eventos (1-200, default 50)",
+        le=1000,
+        description="Máximo de eventos (1-1000, default 50)",
     ),
     container: Container = Depends(get_container),
 ):
@@ -77,7 +77,7 @@ async def get_station_events(
     limit: int = Query(
         default=50,
         ge=1,
-        le=200,
+        le=1000,
         description="Máximo de eventos",
     ),
     container: Container = Depends(get_container),

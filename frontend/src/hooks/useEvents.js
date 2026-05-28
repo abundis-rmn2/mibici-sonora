@@ -26,7 +26,8 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
 
     async function loadEvents() {
       try {
-        const data = await fetchLatestEvents(20);
+        // Pedimos más eventos (usamos el default o máximo del backend) para no perder actividades
+        const data = await fetchLatestEvents(200);
         
         if (isMounted) {
           setEvents(prevEvents => {
@@ -55,9 +56,9 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
               setTimeout(() => callback(newEvents), 0);
             }
             
-            // Retornar los anteriores + los nuevos al principio, limitando a max 100
+            // Retornar los anteriores + los nuevos al principio, sin límite (abierto a todas las actividades)
             const combined = [...newEvents, ...prevEvents];
-            return combined.slice(0, 100);
+            return combined;
           });
           setError(null);
         }
