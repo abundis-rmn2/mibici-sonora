@@ -240,3 +240,27 @@ class EventRepository(ABC):
             Lista de eventos de esa estación
         """
         ...
+
+    @abstractmethod
+    async def get_events_summary(
+        self,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ) -> dict[str, dict[str, int]]:
+        """
+        Obtiene el conteo total de bicicletas tomadas y devueltas por estación.
+        Retorna { station_id: {"taken": int, "returned": int} }
+        """
+        ...
+
+    @abstractmethod
+    async def get_mass_movements(
+        self,
+        threshold: int = 8,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ) -> list[BikeEvent]:
+        """
+        Obtiene eventos donde el delta > threshold (movimientos por camión de balanceo).
+        """
+        ...

@@ -318,6 +318,47 @@ class PostgresSnapshotRepo(SnapshotRepository):
 
             return [self._to_entity(m) for m in models]
 
+    async def get_volatility_by_station(self) -> list[dict]:
+        """
+        Calcula el índice de volatilidad (STDDEV) de bicicletas por estación.
+
+        Usado por el Índice de Presión Multimodal: alta volatilidad = estación
+        que se llena y vacía constantemente = estrés de última milla.
+
+        Returns:
+            Lista de {station_id, volatility_index} ordenada de mayor a menor
+        """
+        async with self._session_factory() as session:
+            raw = text("""
+                WITH hourly AS (
+                    SELECT station_id,
+                           date_trunc('hour', timestamp) as hour,
+                           AVG(bikes) as avg_bikes
+                    FROM snapshots
+                    WHERE timestamp > NOW() - INTERVAL '7 days'
+                    GROUP BY station_id, date_trunc('hour', timestamp)
+                )
+                SELECT station_id,
+                       STDDEV(avg_bikes) as volatility_index,
+                       AVG(avg_bikes)    as mean_bikes,
+                       COUNT(*)          as sample_hours
+                FROM hourly
+                GROUP BY station_id
+                HAVING COUNT(*) >= 5
+                ORDER BY volatility_index DESC NULLS LAST
+            """)
+            result = await session.execute(raw)
+            rows = result.mappings().all()
+            return [
+                {
+                    "station_id": r["station_id"],
+                    "volatility_index": float(r["volatility_index"] or 0),
+                    "mean_bikes": float(r["mean_bikes"] or 0),
+                    "sample_hours": int(r["sample_hours"]),
+                }
+                for r in rows
+            ]
+
     @staticmethod
     def _to_entity(model: SnapshotModel) -> Snapshot:
         """Convierte modelo ORM → entidad de dominio."""
@@ -432,6 +473,93 @@ class PostgresEventRepo(EventRepository):
             models = result.scalars().all()
 
             return [self._to_entity(m) for m in models]
+
+    async def get_events_summary(
+        self,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ) -> dict[str, dict[str, int]]:
+        async with self._session_factory() as session:
+            stmt = select(
+                EventModel.station_id,
+                EventModel.event_type,
+                func.sum(EventModel.delta).label("total")
+            )
+            if start:
+                stmt = stmt.where(EventModel.timestamp >= start)
+            if end:
+                stmt = stmt.where(EventModel.timestamp <= end)
+            
+            stmt = stmt.group_by(EventModel.station_id, EventModel.event_type)
+            result = await session.execute(stmt)
+            
+            summary = {}
+            for row in result.all():
+                sid, etype, total = row
+                if sid not in summary:
+                    summary[sid] = {"taken": 0, "returned": 0}
+                if etype == "bike_taken":
+                    summary[sid]["taken"] += total
+                elif etype == "bike_returned":
+                    summary[sid]["returned"] += total
+                    
+            return summary
+
+    async def get_mass_movements(
+        self,
+        threshold: int = 8,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ) -> list[BikeEvent]:
+        async with self._session_factory() as session:
+            stmt = select(EventModel).where(EventModel.delta > threshold)
+            if start:
+                stmt = stmt.where(EventModel.timestamp >= start)
+            if end:
+                stmt = stmt.where(EventModel.timestamp <= end)
+                
+            stmt = stmt.order_by(desc(EventModel.timestamp))
+            result = await session.execute(stmt)
+            return [self._to_entity(m) for m in result.scalars().all()]
+
+    async def get_events_by_hour_range(
+        self,
+        hour_start: int,
+        hour_end: int,
+    ) -> list[BikeEvent]:
+        """
+        Obtiene eventos dentro de un rango horario (hora del día).
+
+        Usado por get_urban_metabolism para calcular flujo neto
+        en ventanas como "mañana 7-10h" o "tarde 17-20h".
+
+        Args:
+            hour_start: Hora de inicio (0-23)
+            hour_end: Hora de fin (0-23, inclusive)
+
+        Returns:
+            Lista de eventos en ese rango horario
+        """
+        async with self._session_factory() as session:
+            raw = text("""
+                SELECT * FROM events
+                WHERE EXTRACT(HOUR FROM timestamp AT TIME ZONE 'America/Mexico_City')
+                      BETWEEN :h_start AND :h_end
+                ORDER BY timestamp DESC
+                LIMIT 5000
+            """)
+            result = await session.execute(raw, {"h_start": hour_start, "h_end": hour_end})
+            rows = result.mappings().all()
+            return [
+                BikeEvent(
+                    station_id=r["station_id"],
+                    timestamp=r["timestamp"],
+                    event_type=r["event_type"],
+                    delta=r["delta"],
+                    zone=r["zone"],
+                )
+                for r in rows
+            ]
 
     @staticmethod
     def _to_entity(model: EventModel) -> BikeEvent:
