@@ -43,6 +43,7 @@ from adapters.postgres_repos import (
 from application.sync_stations import SyncStationsUseCase
 from application.collect_status import CollectStatusUseCase
 from application.detect_events import DetectEventsUseCase
+from application.analytics import AnalyticsService
 
 
 class Container:
@@ -123,4 +124,11 @@ class Container:
             gbfs_port=self.gbfs_adapter,
             snapshot_repo=self.snapshot_repo,
             detect_events=self.detect_events,
+        )
+
+        # Servicio de analítica
+        self.analytics = AnalyticsService(
+            station_repo=self.station_repo,
+            snapshot_repo=self.snapshot_repo,
+            event_repo=self.event_repo,
         )

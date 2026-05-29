@@ -46,3 +46,62 @@ export async function fetchHealth() {
   }
   return response.json();
 }
+
+/**
+ * Analytics endpoints
+ */
+export async function fetchStationSummary() {
+  const res = await fetch(`${API_BASE}/analytics/station-summary`);
+  if (!res.ok) throw new Error("Error fetching station summary");
+  return res.json();
+}
+
+export async function fetchCurrentStatus() {
+  const res = await fetch(`${API_BASE}/analytics/current-status`);
+  if (!res.ok) throw new Error("Error fetching current status");
+  return res.json();
+}
+
+export async function fetchHistory(stationId, limit = 100, start, end) {
+  let url = `${API_BASE}/analytics/history/${stationId}?limit=${limit}`;
+  if (start) url += `&start=${start}`;
+  if (end) url += `&end=${end}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error fetching history");
+  return res.json();
+}
+
+export async function fetchAnalyticsEvents(limit = 50, stationId) {
+  let url = `${API_BASE}/analytics/events?limit=${limit}`;
+  if (stationId) url += `&station_id=${stationId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error fetching analytics events");
+  return res.json();
+}
+
+export async function fetchFlow(limit = 20, start, end) {
+  let url = `${API_BASE}/analytics/flow?limit=${limit}`;
+  if (start) url += `&start=${start}`;
+  if (end) url += `&end=${end}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error fetching flow");
+  return res.json();
+}
+
+export async function fetchBalance(topN = 25, start, end) {
+  let url = `${API_BASE}/analytics/balance?top_n=${topN}`;
+  if (start) url += `&start=${start}`;
+  if (end) url += `&end=${end}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error fetching balance");
+  return res.json();
+}
+
+export async function fetchMovement(threshold = 8, start, end) {
+  let url = `${API_BASE}/analytics/movement?threshold=${threshold}`;
+  if (start) url += `&start=${start}`;
+  if (end) url += `&end=${end}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error fetching movement");
+  return res.json();
+}

@@ -35,7 +35,7 @@ from adapters.api.dependencies import get_container
 from adapters.api.schemas import HealthResponse
 
 # Importar los routers (cada uno define un grupo de endpoints)
-from adapters.api.routers import events, heatmap, stations
+from adapters.api.routers import events, heatmap, stations, analytics
 
 # Configurar logging
 logging.basicConfig(
@@ -91,6 +91,7 @@ app.add_middleware(
 app.include_router(stations.router)
 app.include_router(events.router)
 app.include_router(heatmap.router)
+app.include_router(analytics.router)
 
 
 # =============================================================================
