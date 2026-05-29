@@ -154,17 +154,68 @@ export function useSonification() {
 
   const transportStartedRef = useRef(false);
 
+  const activeEventsRef = useRef([]);
+
   const scheduleEvents = (enrichedEvents) => {
     if (!isReadyRef.current || !synthRef.current) return [];
     
-    // Limpiar partitura anterior si existe
-    if (partRef.current) {
-      partRef.current.dispose();
+    // 1. Limpiar nuestra lista de memoria reteniendo SOLO los que no se han reproducido aún
+    activeEventsRef.current = activeEventsRef.current.filter(e => !e.played);
+
+    // 2. Crear la partitura si no existe
+    if (!partRef.current) {
+      partRef.current = new Tone.Part((time, value) => {
+        // Evitar doble reproducción por si acaso
+        if (value.played) return;
+        value.played = true; // ⬅️ Estado: Reproducido (Played)
+        
+        const { event, duration, velocity } = value;
+        
+        // Invertido a petición: Bicis devueltas (bike_returned) suenan como percusión (batería rítmica)
+        if (event.event_type === 'bike_returned') {
+          // Añadir "groove" extra: pequeño desfase aleatorio para las percusiones
+          const jitter = (Math.random() * 0.15) - 0.075; 
+          const playTime = time + jitter;
+
+          if (event.zone === 'ZPN') {
+             // Zapopan: Snare
+             synthRef.current.snare.triggerAttackRelease("8n", playTime, velocity);
+          } else if (event.zone === 'TLQ') {
+             // Tlaquepaque: Crash (Reemplaza al Hi-Hat a petición)
+             synthRef.current.crash.triggerAttackRelease("2n", playTime, velocity * 0.7);
+          } else {
+             // GDL - Kick (Afinación más aguda a petición)
+             const kickPitches = ['C3', 'D3', 'E3', 'G3'];
+             const randomPitch = kickPitches[Math.floor(Math.random() * kickPitches.length)];
+             synthRef.current.kick.triggerAttackRelease(randomPitch, duration, playTime, velocity);
+          }
+        } else {
+          // Invertido: Bicis tomadas (bike_taken) suenan como Arpegios (melódico)
+          const baseOctave = event.zone === 'ZPN' ? 5 : event.zone === 'TLQ' ? 3 : 4;
+          const notes = ['C', 'D', 'E', 'G', 'A']; // Pentatonic
+          const noteIndex = event.station_id ? parseInt(event.station_id) % notes.length : 0;
+          const noteName = notes[noteIndex];
+          const mainNote = `${noteName}${baseOctave}`;
+
+          // Nota principal
+          synthRef.current.arp.triggerAttackRelease(mainNote, "16n", time, velocity * 0.7);
+
+          // "una nota abajo a y medio segundo despues para darle otra profundidad"
+          const lowerNote = `${noteName}${baseOctave - 1}`;
+          synthRef.current.arp.triggerAttackRelease(lowerNote, "8n", time + 0.5, velocity * 0.5);
+        }
+
+        // Sincronización Visual: Programar el ripple en el mapa usando Tone.Draw
+        Tone.Draw.schedule(() => {
+          if (onRippleRef.current) {
+            onRippleRef.current(event);
+          }
+        }, time);
+
+      }, []).start(0);
     }
 
-    const eventsToSchedule = [];
-
-    // Agrupar por categoría (tipo + zona) para no empalmarlos
+    // 3. Agrupar por categoría (tipo + zona) los NUEVOS eventos
     const groups = {};
     enrichedEvents.forEach(e => {
        const key = `${e.event_type}-${e.zone}`;
@@ -172,79 +223,44 @@ export function useSonification() {
        groups[key].push(e);
     });
 
-    // Distribuir equitativamente cada grupo a lo largo del compás de CONFIG.LOOP_DURATION_SECONDS
+    const newEventsToSchedule = [];
+
+    // Distribuir equitativamente cada grupo a lo largo del compás
     Object.keys(groups).forEach(key => {
        const groupEvents = groups[key];
        const count = groupEvents.length;
-       const step = CONFIG.LOOP_DURATION_SECONDS / count; // El espacio exacto entre cada nota de esta categoría
+       const step = CONFIG.LOOP_DURATION_SECONDS / count; // Espacio exacto
        
        groupEvents.forEach((event, i) => {
-         // Calculamos el tiempo exacto. Añadimos más "humanize" (swing aleatorio) para que no suene tan rígido
-         let timeInSeconds = (i * step) + (Math.random() * 0.25) - 0.1; // +/- aleatoriedad
+         let timeInSeconds = (i * step) + (Math.random() * 0.25) - 0.1;
          
-         // Desfase de medio segundo para los puntos rojos/bicis ancladas (contratiempo)
          if (event.event_type === 'bike_returned') {
            timeInSeconds += 0.5;
          }
 
-         if (timeInSeconds >= CONFIG.LOOP_DURATION_SECONDS) timeInSeconds -= CONFIG.LOOP_DURATION_SECONDS; // Prevenir desbordamiento del loop
+         if (timeInSeconds >= CONFIG.LOOP_DURATION_SECONDS) timeInSeconds -= CONFIG.LOOP_DURATION_SECONDS;
          if (timeInSeconds < 0) timeInSeconds += CONFIG.LOOP_DURATION_SECONDS;
          
          const delta = event.delta || 1;
          const duration = delta === 1 ? '8n' : delta <= 3 ? '4n' : '2n';
-         // Aleatorizar un poco el volumen (velocity) para que suene más orgánico
          const velocity = Math.min(0.4 + (Math.random() * 0.3) + (delta * 0.1), 1); 
 
-         eventsToSchedule.push({ time: timeInSeconds, event, duration, velocity });
+         // ⬅️ Estado: Pendiente de reproducir
+         newEventsToSchedule.push({ time: timeInSeconds, event, duration, velocity, played: false });
        });
     });
 
-    partRef.current = new Tone.Part((time, value) => {
-      const { event, duration, velocity } = value;
-      
-      // Invertido a petición: Bicis devueltas (bike_returned) suenan como percusión (batería rítmica)
-      if (event.event_type === 'bike_returned') {
-        // Añadir "groove" extra: pequeño desfase aleatorio para las percusiones
-        const jitter = (Math.random() * 0.15) - 0.075; 
-        const playTime = time + jitter;
+    // 4. Agregar los nuevos a nuestra lista activa
+    activeEventsRef.current.push(...newEventsToSchedule);
 
-        if (event.zone === 'ZPN') {
-           // Zapopan: Snare
-           synthRef.current.snare.triggerAttackRelease("8n", playTime, velocity);
-        } else if (event.zone === 'TLQ') {
-           // Tlaquepaque: Crash (Reemplaza al Hi-Hat a petición)
-           synthRef.current.crash.triggerAttackRelease("2n", playTime, velocity * 0.7);
-        } else {
-           // GDL - Kick (Afinación más aguda a petición)
-           const kickPitches = ['C3', 'D3', 'E3', 'G3'];
-           const randomPitch = kickPitches[Math.floor(Math.random() * kickPitches.length)];
-           synthRef.current.kick.triggerAttackRelease(randomPitch, duration, playTime, velocity);
-        }
-      } else {
-        // Invertido: Bicis tomadas (bike_taken) suenan como Arpegios (melódico)
-        const baseOctave = event.zone === 'ZPN' ? 5 : event.zone === 'TLQ' ? 3 : 4;
-        const notes = ['C', 'D', 'E', 'G', 'A']; // Pentatonic
-        // Use hash of station ID or something to pick a note
-        const noteIndex = event.station_id ? parseInt(event.station_id) % notes.length : 0;
-        const noteName = notes[noteIndex];
-        const mainNote = `${noteName}${baseOctave}`;
-
-        // Nota principal
-        synthRef.current.arp.triggerAttackRelease(mainNote, "16n", time, velocity * 0.7);
-
-        // "una nota abajo a y medio segundo despues para darle otra profundidad"
-        const lowerNote = `${noteName}${baseOctave - 1}`;
-        synthRef.current.arp.triggerAttackRelease(lowerNote, "8n", time + 0.5, velocity * 0.5);
-      }
-
-      // Sincronización Visual: Programar el ripple en el mapa usando Tone.Draw
-      Tone.Draw.schedule(() => {
-        if (onRippleRef.current) {
-          onRippleRef.current(event);
-        }
-      }, time);
-
-    }, eventsToSchedule).start(0);
+    // 5. Actualizar la partitura en Tone.js:
+    // Limpiamos los eventos anteriores de la partitura (pero los mantenemos en activeEventsRef si no sonaron)
+    partRef.current.clear();
+    
+    // Inyectamos todos los eventos activos (los nuevos + los rezagados)
+    activeEventsRef.current.forEach(item => {
+      partRef.current.add(item.time, item);
+    });
     
     // Iniciar Transport una sola vez después de la primera partitura
     if (!transportStartedRef.current) {
@@ -253,11 +269,8 @@ export function useSonification() {
       console.log('🔈 Transport iniciado después del primer fetch/partitura.');
     }
 
-    // Resincronizar el playhead para que inicie la partitura desde cero
-    // y evitar desfases entre el setInterval (polling) y el loop de Tone.js
-    Tone.Transport.seconds = 0;
-
-    return eventsToSchedule;
+    // Retornamos todos los activos para que la UI también los vea si lo requiere
+    return activeEventsRef.current;
   };
 
   const playTick = (beat) => {

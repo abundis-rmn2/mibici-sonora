@@ -90,8 +90,9 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
     // Carga inicial
     loadEvents();
 
-    // Iniciar polling
-    const intervalId = setInterval(loadEvents, pollIntervalMs);
+    // Iniciar polling con "Lookahead" (margen para red)
+    const FETCH_AHEAD_MARGIN = 1500;
+    const intervalId = setInterval(loadEvents, pollIntervalMs - FETCH_AHEAD_MARGIN);
 
     // Cleanup al desmontar
     return () => {

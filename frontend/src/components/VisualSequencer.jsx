@@ -57,14 +57,16 @@ export default function VisualSequencer({ scheduledEvents = [], getTransportSeco
         if (isDrum) {
           // Cuantizado abajo (batería)
           y = height - 15 - (pseudoRand * 10); // Ligera variación en altura
-          ctx.fillStyle = `rgba(${CONFIG.COLORS.DANGER_RGB}, 0.9)`; // Rojo para batería/devueltas
+          // Si ya sonó, se vuelve gris semi-transparente
+          ctx.fillStyle = item.played ? 'rgba(255, 255, 255, 0.2)' : `rgba(${CONFIG.COLORS.DANGER_RGB}, 0.9)`; 
           ctx.beginPath();
           ctx.arc(x, y, 6, 0, Math.PI * 2); // Bolitas
           ctx.fill();
         } else {
           // Arpegios arriba (melodía)
           y = 15 + (pseudoRand * (height / 2 - 20)); // Mitad superior
-          ctx.fillStyle = `rgba(${CONFIG.COLORS.PRIMARY_RGB}, 0.9)`; // Verde para arpegios/sacadas
+          // Si ya sonó, se vuelve gris semi-transparente
+          ctx.fillStyle = item.played ? 'rgba(255, 255, 255, 0.2)' : `rgba(${CONFIG.COLORS.PRIMARY_RGB}, 0.9)`; 
           ctx.fillRect(x - 6, y, 12, 4); // Línea/Rayita horizontal centrada en X
         }
       });

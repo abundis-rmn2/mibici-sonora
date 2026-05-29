@@ -6,22 +6,14 @@
    y las peticiones se dirigirán a http://localhost:8000/api/*
    ========================================================================== */
 
-// Usamos la URL pública si existe (producción), directamente el puerto 8000 en desarrollo (local), o la ruta relativa si no.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL 
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api` 
-  : process.env.NODE_ENV === 'development'
-    ? 'http://localhost:8000/api'
-    : '/api';
+// El proxy de Next.js (next.config.mjs) se encarga de redirigir a BACKEND_API_URL o localhost:8000
+const API_BASE = '/api';
 
 /**
  * Obtiene todas las estaciones con su status actual
  */
 export async function fetchStations() {
-  const t = new Date().getTime();
-  const response = await fetch(`${API_BASE}/stations?_t=${t}`, {
-    cache: 'no-store',
-    headers: { 'Cache-Control': 'no-cache' }
-  });
+  const response = await fetch(`${API_BASE}/stations`);
   if (!response.ok) {
     throw new Error(`Error fetching stations: ${response.statusText}`);
   }

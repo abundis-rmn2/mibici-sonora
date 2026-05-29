@@ -1,6 +1,6 @@
 'use client';
 
-export default function WelcomeModal({ onStart }) {
+export default function WelcomeModal({ onStart, isReady = true }) {
   return (
     <div style={{
       position: 'fixed',
@@ -49,28 +49,31 @@ export default function WelcomeModal({ onStart }) {
 
         <button 
           onClick={onStart}
+          disabled={!isReady}
           style={{
-            backgroundColor: '#00C9A7',
-            color: '#0A0E27',
+            backgroundColor: isReady ? '#00C9A7' : '#374151',
+            color: isReady ? '#0A0E27' : '#9CA3AF',
             border: 'none',
             padding: '16px 32px',
             fontSize: '18px',
             fontWeight: '600',
             borderRadius: '50px',
-            cursor: 'pointer',
+            cursor: isReady ? 'pointer' : 'not-allowed',
             transition: 'all 0.3s ease',
-            boxShadow: '0 10px 15px -3px rgba(0, 201, 167, 0.3)',
+            boxShadow: isReady ? '0 10px 15px -3px rgba(0, 201, 167, 0.3)' : 'none',
           }}
           onMouseOver={(e) => {
+            if (!isReady) return;
             e.currentTarget.style.transform = 'translateY(-2px)';
             e.currentTarget.style.boxShadow = '0 15px 20px -3px rgba(0, 201, 167, 0.4)';
           }}
           onMouseOut={(e) => {
+            if (!isReady) return;
             e.currentTarget.style.transform = 'translateY(0)';
             e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 201, 167, 0.3)';
           }}
         >
-          🎵 Iniciar Experiencia Sonora
+          {isReady ? '🎵 Iniciar Experiencia Sonora' : '⏳ Cargando Estaciones de Mibici...'}
         </button>
       </div>
 

@@ -26,7 +26,6 @@ export default function PollingTimer({ cycleCount }) {
       justifyContent: 'center'
     }}>
       <svg 
-        key={key} 
         width={size} 
         height={size} 
         viewBox={`0 0 ${size} ${size}`} 

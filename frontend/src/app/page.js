@@ -67,8 +67,8 @@ export default function Dashboard() {
     });
   }, [setOnRipple]);
 
-  // Polling de estaciones (usando configuración central)
-  const { stations, loading: loadingStations, error: stationError, lastUpdate } = useStations(CONFIG.POLLING_INTERVAL_MS);
+  // Polling de estaciones cada minuto para no saturar el API con requests lentos
+  const { stations, loading: loadingStations, error: stationError, lastUpdate, isFetching: isFetchingStations } = useStations(60000);
   
   // Secuenciador maestro
   const handleNewEvents = (newEvents) => {
@@ -133,14 +133,21 @@ export default function Dashboard() {
     return enriched.filter(e => e.zone === currentZone);
   }, [events, currentZone, stations]);
 
+  // Determinar si ya está listo: si hay caché (stations.length > 0) inicia de inmediato.
+  // Si no hay caché, espera a que termine el fetch (cuando isFetchingStations sea false).
+  const isInitialFetchComplete = stations.length > 0 || (!isFetchingStations && stationError !== null);
+
   return (
     <main style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {/* Modal Inicial para activar Audio */}
       {showWelcome && (
-        <WelcomeModal onStart={() => {
-          initAudio();
-          setShowWelcome(false);
-        }} />
+        <WelcomeModal 
+          isReady={isInitialFetchComplete}
+          onStart={() => {
+            initAudio();
+            setShowWelcome(false);
+          }} 
+        />
       )}
 
       {/* Botón flotante solo para móviles para abrir las opciones */}
