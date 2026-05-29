@@ -2,7 +2,7 @@
 import Link from 'next/link';
 
 const NAV_LINKS = [
-  { href: '/datos',                 label: '📊 Datos',        title: 'Dashboard Analítico' },
+  { href: '/',                      label: '🏠 Inicio',       title: 'Volver al Dashboard Principal' },
   { href: '/datos/metabolismo',     label: '🔴🔵 Metabolismo', title: 'Metabolismo Urbano' },
   { href: '/datos/corredores',      label: '↗️ Corredores',   title: 'Líneas de Deseo' },
   { href: '/datos/redes',           label: '🕸️ Redes',        title: 'Topología de Red' },

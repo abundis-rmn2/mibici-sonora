@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, CircleMarker, Polyline, Circle, Marker, Toolti
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-export default function StaticMap({ nodes = [], edges = [], areas = [], height = 420, interactive = false, onNodeClick }) {
+export default function StaticMap({ nodes = [], edges = [], areas = [], height = 420, interactive = false, onNodeClick, zoomControl = false }) {
   const gdlCenter = [20.6736, -103.3440];
 
   return (
@@ -13,7 +13,7 @@ export default function StaticMap({ nodes = [], edges = [], areas = [], height =
         center={gdlCenter}
         zoom={13}
         style={{ height: '100%', width: '100%', background: '#0A0E27' }}
-        zoomControl={interactive}
+        zoomControl={zoomControl}
         dragging={interactive}
         scrollWheelZoom={interactive}
         doubleClickZoom={interactive}

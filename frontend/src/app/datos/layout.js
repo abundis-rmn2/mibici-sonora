@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const NAV_ITEMS = [
-  { href: '/datos',                 label: 'Resumen General',       icon: '📊', desc: 'Dashboard principal' },
+  { href: '/',                      label: 'Resumen General',       icon: '📊', desc: 'Dashboard principal' },
   { href: '/datos/metabolismo',     label: 'Metabolismo Urbano',    icon: '🔴🔵', desc: 'Fuentes vs Sumideros' },
   { href: '/datos/corredores',      label: 'Corredores',            icon: '↗️', desc: 'Líneas de Deseo + Estrés' },
   { href: '/datos/redes',           label: 'Topología de Red',      icon: '🕸️', desc: 'Centralidad + LISA' },
@@ -15,7 +15,7 @@ const NAV_ITEMS = [
 
 const EXTERNAL_LINKS = [
   { href: '/mibici-se-siente',      label: 'MiBici Se Siente',      icon: '🎭', desc: 'Visualización Full-Page' },
-  { href: '/',                      label: 'Instalación Sonora',    icon: '🎵', desc: 'MiBici Sonora' },
+  { href: '/mibici-se-escucha',     label: 'Instalación Sonora',    icon: '🎵', desc: 'MiBici Sonora' },
 ];
 
 export default function DatosLayout({ children }) {
