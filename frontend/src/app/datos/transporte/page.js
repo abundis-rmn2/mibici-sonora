@@ -59,7 +59,9 @@ export default function TransportePage() {
 
   return (
     <div style={{ background:'#0a0a0f', color:'#e2e8f0', fontFamily:"'Inter','Segoe UI',sans-serif" }}>
-      <Link href="/datos" style={{ color:'#00d2ff', textDecoration:'none', fontSize:'0.85rem' }}>← Volver a Datos</Link>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
+        <Link href="/datos" style={{ color:'#00d2ff', textDecoration:'none', fontSize:'0.85rem' }}>Volver a Datos →</Link>
+      </div>
 
       <h1 style={{ fontSize:'2rem', fontWeight:800, background:'linear-gradient(90deg,#34d399,#06b6d4)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', margin:'1rem 0 0.25rem' }}>
         Equidad Espacial y Cobertura

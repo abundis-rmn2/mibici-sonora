@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -19,6 +20,7 @@ const EXTERNAL_LINKS = [
 
 export default function DatosLayout({ children }) {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (
     <div style={{
@@ -29,12 +31,43 @@ export default function DatosLayout({ children }) {
       fontFamily: "'Inter','Segoe UI',sans-serif",
       overflow: 'hidden',
     }}>
+      {/* Botón flotante para colapsar/expandir el panel lateral */}
+      <button 
+        onClick={() => setIsCollapsed(!isCollapsed)} 
+        style={{
+          position: 'fixed',
+          top: '1.5rem',
+          left: isCollapsed ? '1rem' : '185px',
+          zIndex: 1001,
+          padding: '0.4rem 0.8rem',
+          borderRadius: '20px',
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: '#00d2ff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.35rem',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          letterSpacing: '0.05em'
+        }}
+      >
+        <span>{isCollapsed ? '➡️' : '⬅️'}</span>
+        <span>MENÚ</span>
+      </button>
+
       {/* ── Sidebar nav ── */}
       <aside style={{
-        width: '220px',
+        width: isCollapsed ? '0px' : '220px',
+        opacity: isCollapsed ? 0 : 1,
+        visibility: isCollapsed ? 'hidden' : 'visible',
         flexShrink: 0,
         background: 'rgba(255,255,255,0.03)',
-        borderRight: '1px solid rgba(255,255,255,0.07)',
+        borderRight: isCollapsed ? 'none' : '1px solid rgba(255,255,255,0.07)',
         display: 'flex',
         flexDirection: 'column',
         position: 'sticky',
@@ -42,6 +75,7 @@ export default function DatosLayout({ children }) {
         height: '100vh',
         overflowY: 'auto',
         padding: '1.25rem 0',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       }}>
         {/* Brand */}
         <div style={{ padding: '0 1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
@@ -117,9 +151,28 @@ export default function DatosLayout({ children }) {
         flex: 1,
         overflowY: 'auto',
         height: '100vh',
-        padding: '2rem',
+        padding: '1.5rem',
+        fontSize: '0.9rem', // Reducir ligeramente el tamaño del texto para mejorar navegación
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex',
+        flexDirection: 'column',
       }}>
-        {children}
+        <div style={{ flex: 1 }}>{children}</div>
+        
+        {/* Leyenda en la parte inferior */}
+        <div style={{
+          marginTop: '2rem',
+          paddingTop: '1rem',
+          borderTop: '1px solid rgba(255,255,255,0.05)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.75rem',
+          color: '#475569'
+        }}>
+          <span>🤖 Menú Horizontal / Colapsable</span>
+          <span>Desarrollado por Javi Abundis</span>
+        </div>
       </main>
     </div>
   );

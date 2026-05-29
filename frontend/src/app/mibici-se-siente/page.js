@@ -74,7 +74,7 @@ export default function MiBiciSeSientePage() {
     <div style={{ width: '100vw', height: '100vh', background: '#0a0a0f', color: '#e2e8f0', fontFamily: "'Inter','Segoe UI',sans-serif", position: 'relative', overflow: viewMode === 'grid' ? 'auto' : 'hidden' }}>
       
       {/* Botones flotantes (Header) */}
-      <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 1000, display: 'flex', gap: '1rem' }}>
+      <div className="desktop-only" style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', zIndex: 1000, display: 'flex', gap: '1rem' }}>
         <Link href="/" style={{
           background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)', color: '#fff', 
           textDecoration: 'none', padding: '0.6rem 1rem', borderRadius: '8px', 
@@ -82,7 +82,7 @@ export default function MiBiciSeSientePage() {
         }}>← Inicio</Link>
       </div>
 
-      <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 1000, display: 'flex', gap: '1rem' }}>
+      <div className="desktop-only" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 1000, display: 'flex', gap: '1rem' }}>
         <button onClick={() => setShowModal(true)} style={{
           background: 'linear-gradient(135deg, rgba(0,210,255,0.2) 0%, rgba(58,123,213,0.3) 100%)',
           border: '1px solid rgba(0,210,255,0.4)', borderRadius: '8px',
@@ -95,7 +95,7 @@ export default function MiBiciSeSientePage() {
       </div>
 
       {/* Distribution bar and filters (Top Center) */}
-      <div style={{ position: 'absolute', top: '1.5rem', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, width: '100%', maxWidth: '700px', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
+      <div className="top-center-bar" style={{ position: 'absolute', top: '1.5rem', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, width: '100%', maxWidth: '700px', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
         <div style={{ display: 'flex', height: '14px', width: '100%', borderRadius: '7px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
           {moodCounts.map(m => m.count > 0 && (
             <div key={m.label} title={`${m.emoji} ${m.label}: ${m.count}`} style={{
@@ -128,7 +128,7 @@ export default function MiBiciSeSientePage() {
       </div>
 
       {/* Control flotante: Toggle */}
-      <div style={{ position: 'fixed', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)', borderRadius: '30px', padding: '0.4rem', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+      <div className="bottom-toggle-container">
         <button onClick={() => setViewMode('map')} style={{
           padding: '0.6rem 1.5rem', borderRadius: '25px', border: 'none', cursor: 'pointer',
           background: viewMode === 'map' ? 'linear-gradient(90deg,#00d2ff,#3a7bd5)' : 'transparent',
@@ -142,6 +142,38 @@ export default function MiBiciSeSientePage() {
           color: viewMode === 'grid' ? '#fff' : '#94a3b8', fontSize: '0.85rem', fontWeight: 700, transition: 'all 0.3s'
         }}>
           🎛️ Tablero
+        </button>
+      </div>
+
+      {/* Botones flotantes de Mobile (Debajo de la barra de navegación del mapa/tablero) */}
+      <div className="mobile-only" style={{
+        position: 'fixed',
+        bottom: '0.8rem',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        display: 'flex',
+        gap: '0.6rem',
+        width: '90%',
+        maxWidth: '340px',
+        justifyContent: 'center'
+      }}>
+        <Link href="/" style={{
+          flex: 1, textAlign: 'center',
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', color: '#fff', 
+          textDecoration: 'none', padding: '0.45rem 1rem', borderRadius: '20px', 
+          fontSize: '0.75rem', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>← Inicio</Link>
+        <button onClick={() => setShowModal(true)} style={{
+          flex: 1.2,
+          background: 'rgba(0,210,255,0.25)', backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(0,210,255,0.5)', borderRadius: '20px',
+          color: '#fff', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+          padding: '0.45rem 1rem',
+          boxShadow: '0 4px 15px rgba(0,210,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.2rem'
+        }}>
+          ℹ️ Metodología
         </button>
       </div>
 
@@ -252,6 +284,44 @@ export default function MiBiciSeSientePage() {
         @keyframes pulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.5); transform: scale(1); }
           50% { box-shadow: 0 0 0 15px rgba(248,113,113,0); transform: scale(1.05); }
+        }
+      `}</style>
+      <style>{`
+        .desktop-only {
+          display: flex !important;
+        }
+        .mobile-only {
+          display: none !important;
+        }
+        .bottom-toggle-container {
+          position: fixed;
+          bottom: 2rem;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 1000;
+          display: flex;
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(12px);
+          border-radius: 30px;
+          padding: 0.4rem;
+          border: 1px solid rgba(255,255,255,0.15);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          transition: bottom 0.3s ease;
+        }
+        @media (max-width: 768px) {
+          .desktop-only {
+            display: none !important;
+          }
+          .mobile-only {
+            display: flex !important;
+          }
+          .bottom-toggle-container {
+            bottom: 3.8rem !important;
+          }
+          .top-center-bar {
+            max-width: 95% !important;
+            padding: 0 0.5rem;
+          }
         }
       `}</style>
     </div>
