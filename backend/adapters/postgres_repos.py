@@ -258,18 +258,22 @@ class PostgresSnapshotRepo(SnapshotRepository):
             Diccionario {station_id: último_snapshot}
         """
         async with self._session_factory() as session:
-            # DISTINCT ON (station_id) retorna solo la fila más reciente
-            # de cada estación. Es una extensión de PostgreSQL muy eficiente.
-            # ORDER BY station_id, timestamp DESC asegura que "la primera fila"
-            # de cada grupo sea la más reciente.
-            stmt = (
-                select(SnapshotModel)
-                .distinct(SnapshotModel.station_id)
-                .order_by(
-                    SnapshotModel.station_id,
-                    desc(SnapshotModel.timestamp),
-                )
-            )
+            # Usar LATERAL JOIN en lugar de DISTINCT ON.
+            # DISTINCT ON sin Skip Scan escanea toda la tabla (millones de filas).
+            # Con LATERAL JOIN, PostgreSQL hace ~300 búsquedas indexadas ultrarrápidas.
+            raw_sql = text("""
+                SELECT sn.*
+                FROM stations st
+                CROSS JOIN LATERAL (
+                    SELECT *
+                    FROM snapshots
+                    WHERE station_id = st.id
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                ) sn
+            """)
+            
+            stmt = select(SnapshotModel).from_statement(raw_sql)
 
             result = await session.execute(stmt)
             models = result.scalars().all()
