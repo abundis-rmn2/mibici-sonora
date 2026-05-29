@@ -105,3 +105,58 @@ export async function fetchMovement(threshold = 8, start, end) {
   if (!res.ok) throw new Error("Error fetching movement");
   return res.json();
 }
+
+// ============================================================
+// Endpoints de Analítica Urbana Avanzada
+// ============================================================
+
+/** Metabolismo Urbano — flujo neto fuente/sumidero por ventana horaria */
+export async function fetchUrbanMetabolism(timeWindow = 'morning') {
+  const res = await fetch(`${API_BASE}/analytics/urban/metabolism?time_window=${timeWindow}`);
+  if (!res.ok) throw new Error("Error fetching urban metabolism");
+  return res.json();
+}
+
+/** Líneas de Deseo — corredores O/D de alta fricción inferidos */
+export async function fetchDesireLines() {
+  const res = await fetch(`${API_BASE}/analytics/urban/desire-lines`);
+  if (!res.ok) throw new Error("Error fetching desire lines");
+  return res.json();
+}
+
+/** Índice de Presión Multimodal — volatilidad de inventario (STDDEV) */
+export async function fetchMultimodalStress() {
+  const res = await fetch(`${API_BASE}/analytics/urban/multimodal-stress`);
+  if (!res.ok) throw new Error("Error fetching multimodal stress");
+  return res.json();
+}
+
+/** Topología de Red — Betweenness Centrality (NetworkX) */
+export async function fetchNetworkCentrality() {
+  const res = await fetch(`${API_BASE}/analytics/network/centrality`);
+  if (!res.ok) throw new Error("Error fetching network centrality");
+  return res.json();
+}
+
+/** LISA — Clústeres de autocorrelación espacial local (HH/LL/HL/LH) */
+export async function fetchLisaClusters() {
+  const res = await fetch(`${API_BASE}/analytics/network/lisa`);
+  if (!res.ok) throw new Error("Error fetching LISA clusters");
+  return res.json();
+}
+
+/** Derby de Movilidad — velocidades inferidas de trayectos */
+export async function fetchBikeDerby() {
+  const res = await fetch(`${API_BASE}/analytics/playful/derby`);
+  if (!res.ok) throw new Error("Error fetching bike derby");
+  return res.json();
+}
+
+/** Viaje del Héroe — cronología de la estación protagonista */
+export async function fetchHeroJourney(stationId) {
+  let url = `${API_BASE}/analytics/playful/hero-journey`;
+  if (stationId) url += `?station_id=${stationId}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Error fetching hero journey");
+  return res.json();
+}

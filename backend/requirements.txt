@@ -46,3 +46,20 @@ pydantic-settings>=2.0
 # click: framework para crear comandos de línea de comandos.
 # Más elegante que argparse, con decoradores y ayuda automática.
 click>=8.1
+
+# ---- Análisis de Redes y Estadística Espacial ----
+# NetworkX: algoritmos de teoría de grafos (betweenness centrality).
+# Permite modelar la red de estaciones como un grafo dirigido ponderado.
+networkx>=3.0
+
+# NumPy: operaciones vectoriales necesarias para libpysal y esda.
+numpy>=1.26
+
+# libpysal: biblioteca de análisis espacial (PySAL).
+# Genera matrices de pesos espaciales (DistanceBand) para LISA.
+libpysal>=4.8
+
+# esda: Exploratory Spatial Data Analysis.
+# Calcula el estadístico I de Moran Local (LISA) para detectar
+# clústeres espaciales (HH/LL/HL/LH) en disponibilidad de bicicletas.
+esda>=2.5

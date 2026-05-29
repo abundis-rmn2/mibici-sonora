@@ -330,7 +330,7 @@ export default function DatosPage() {
       </div>
       <div className="grid-2">
         <div className="card table-wrapper">
-        <h3 style={{color: '#00d2ff'}}>Más Atendida (Llegada &gt; 8)</h3>
+        <h3 style={{color: '#00d2ff'}}>Más Atendida (Llegada {'>'} 8)</h3>
         <table>
           <thead><tr><th>Estación</th><th>Movimiento</th></tr></thead>
           <tbody>
@@ -343,7 +343,7 @@ export default function DatosPage() {
         </table>
       </div>
       <div className="card table-wrapper">
-        <h3 style={{color: '#ff4b4b'}}>Menos Atendida (Salida &lt; -8)</h3>
+        <h3 style={{color: '#ff4b4b'}}>Menos Atendida (Salida {'<'} -8)</h3>
         <table>
           <thead><tr><th>Estación</th><th>Movimiento</th></tr></thead>
           <tbody>
@@ -360,7 +360,7 @@ export default function DatosPage() {
   );
 
   return (
-    <div className="container">
+    <div className="container" style={{padding: 0}}>
       <div className="header">
         <h1>Datos Analíticos</h1>
         <p>Dashboard de inteligencia para MiBici Sonora</p>
