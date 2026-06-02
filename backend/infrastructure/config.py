@@ -40,11 +40,11 @@ class Settings(BaseSettings):
     # URL de conexión a PostgreSQL con driver asyncpg.
     # El formato es: postgresql+asyncpg://usuario:password@host:puerto/db
     # "postgres" como host funciona dentro de Docker Compose (DNS interno).
-    DATABASE_URL: str = (
+    SUPABASE_DB_URL: str = (
         "postgresql+asyncpg://mibici:mibici_dev@postgres:5432/mibici_sonora"
     )
 
-    @field_validator("DATABASE_URL", mode="before")
+    @field_validator("SUPABASE_DB_URL", mode="before")
     @classmethod
     def assemble_db_url(cls, v: str | None) -> str:
         """

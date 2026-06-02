@@ -118,46 +118,6 @@ async def on_startup():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
         await conn.run_sync(Base.metadata.create_all)
 
-    # -------------------------------------------------------------------------
-    # WORKAROUND PARA RENDER FREE TIER
-    # Como Render no permite 'Background Workers' en la capa gratuita,
-    # ejecutamos el recolector aquí mismo, dentro de la API web.
-    # -------------------------------------------------------------------------
-    logger.info("🚀 Iniciando recolector de datos en segundo plano...")
-    from apscheduler.schedulers.asyncio import AsyncIOScheduler
-    from infrastructure.config import settings
-
-    scheduler = AsyncIOScheduler()
-
-    async def _poll_status():
-        try:
-            container = get_container()
-            current_stations = await container.station_repo.get_all()
-            
-            # Si la DB está vacía, saltamos este ciclo
-            if not current_stations:
-                logger.warning("Esperando sincronización de estaciones...")
-                return
-                
-            zones = {s.id: s.region for s in current_stations}
-            container.collect_status.set_station_zones(zones)
-            
-            result = await container.collect_status.execute()
-            logger.info(f"📊 Collector: {result['snapshots']} snapshots, {result['events']} eventos detectados")
-        except Exception as e:
-            logger.error(f"❌ Error en recolector: {e}")
-
-    scheduler.add_job(
-        _poll_status,
-        "interval",
-        seconds=settings.STATUS_POLL_SECONDS,
-        id="poll_status",
-    )
-    
-    # Guardamos el scheduler en la app para poder detenerlo al apagar
-    app.state.scheduler = scheduler
-    scheduler.start()
-
     logger.info("✅ API lista. Documentación en: http://localhost:8000/docs")
 
 
@@ -169,10 +129,6 @@ async def on_shutdown():
     Cierra el pool de conexiones a PostgreSQL limpiamente.
     """
     from infrastructure.database import engine
-
-    if hasattr(app.state, "scheduler"):
-        logger.info("🛑 Deteniendo recolector...")
-        app.state.scheduler.shutdown()
 
     await engine.dispose()
     logger.info("👋 API detenida")
@@ -188,31 +144,6 @@ async def root():
     """
     return {"status": "ok", "app": "MiBici Sonora API", "docs": "/docs"}
 
-
-# =============================================================================
-# Endpoint: Admin Sync Stations (Alternativa al CLI en Render)
-# =============================================================================
-@app.get("/api/admin/sync-stations", tags=["Admin"], summary="Sincronizar estaciones")
-async def admin_sync_stations():
-    """
-    Sincroniza las estaciones de MiBici desde la API GBFS hacia la base de datos.
-    Útil en entornos de nube gratuitos (como Render) donde no hay acceso a la consola/shell
-    para ejecutar el comando CLI.
-    """
-    try:
-        container = get_container()
-        count = await container.sync_stations.execute()
-        return {
-            "status": "success",
-            "message": f"Se sincronizaron exitosamente {count} estaciones.",
-            "instructions": "La base de datos ya tiene el mapa. El worker empezará a guardar eventos en breve."
-        }
-    except Exception as e:
-        logger.error(f"❌ Error al sincronizar estaciones vía API: {e}")
-        return {
-            "status": "error",
-            "message": f"Hubo un error al sincronizar: {str(e)}"
-        }
 
 
 # =============================================================================

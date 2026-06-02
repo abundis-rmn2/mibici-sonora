@@ -31,6 +31,10 @@ Hexagonal (Ports & Adapters)
 # 1. Copiar variables de entorno
 cp .env.example .env
 
+# Asegúrate de agregar tus credenciales de Supabase en el archivo .env
+# NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY son requeridas 
+# por el frontend para consultar estaciones y eventos en tiempo real.
+
 # 2. Levantar servicios (PostgreSQL + API)
 docker compose up -d
 
