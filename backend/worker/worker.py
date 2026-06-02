@@ -125,8 +125,32 @@ async def run_collect_status():
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             """, values)
             
-            # (In a real scenario, we might also generate events here if we want to store them in 'events' table,
-            # or the backend analytics could compute events on the fly. For now, we mimic what we can or let backend handle it.)
+            # 3.5 Generate and insert events
+            event_values = []
+            for d in diffs:
+                delta = d.get('delta_bikes', 0)
+                if delta == 0:
+                    continue
+                
+                event_type = "bike_returned" if delta > 0 else "bike_taken"
+                # For multiple bikes taken/returned at once, we log the absolute delta
+                abs_delta = abs(delta)
+                
+                event_values.append((
+                    d['station_id'],
+                    now,
+                    event_type,
+                    abs_delta,
+                    d['bikes'],
+                    d['docks']
+                ))
+                
+            if event_values:
+                await supa_conn.executemany("""
+                    INSERT INTO events (station_id, timestamp, event_type, delta, current_bikes, current_docks)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                """, event_values)
+                logger.info(f"✅ Bulk inserted {len(event_values)} events to Supabase.")
             
             logger.info(f"✅ Bulk inserted {len(values)} diffs to Supabase.")
             
