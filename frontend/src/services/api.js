@@ -9,6 +9,9 @@
 // El proxy de Next.js (next.config.mjs) se encarga de redirigir a BACKEND_API_URL o localhost:8000
 const API_BASE = '/api';
 
+import { createClient } from '../utils/supabase/client';
+const supabase = createClient();
+
 /**
  * Wrapper de fetch para Debug en Consola (Muestra la ruta del tráfico)
  */
@@ -51,6 +54,39 @@ export async function fetchLatestEvents(limit = 50) {
     throw new Error(`Error fetching events: ${response.statusText}`);
   }
   return response.json();
+}
+
+/**
+ * Obtiene todas las estaciones con su status actual directamente desde Supabase
+ */
+export async function fetchStationsDirect() {
+  console.log(
+    `%c[🔓 Supabase Direct]`, 
+    'background: #ff00ff; color: #fff; font-weight: bold; border-radius: 4px; padding: 2px 4px;', 
+    `Obteniendo datos de stations...`
+  );
+  const { data, error } = await supabase.from('stations').select('*');
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Obtiene los últimos eventos detectados en el sistema directamente desde Supabase
+ * @param {number} limit Máximo de eventos a retornar
+ */
+export async function fetchLatestEventsDirect(limit = 50) {
+  console.log(
+    `%c[🔓 Supabase Direct]`, 
+    'background: #ff00ff; color: #fff; font-weight: bold; border-radius: 4px; padding: 2px 4px;', 
+    `Obteniendo datos de events (limit: ${limit})...`
+  );
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('timestamp', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
 }
 
 /**

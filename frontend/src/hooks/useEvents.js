@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { fetchLatestEvents } from '../services/api';
+import { fetchLatestEventsDirect } from '../services/api';
 
 /**
  * Hook para obtener y mantener el log de eventos.
@@ -30,7 +30,7 @@ export function useEvents(pollIntervalMs = 15000, onNewEvents = null) {
         if (isMounted) setCycleCount(prev => prev + 1); // Disparamos el ciclo del compás
         
         // Pedimos más eventos (usamos el default o máximo del backend) para no perder actividades
-        const data = await fetchLatestEvents(200);
+        const data = await fetchLatestEventsDirect(200);
         
         if (isMounted) {
           setEvents(prevEvents => {

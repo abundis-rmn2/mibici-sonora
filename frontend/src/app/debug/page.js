@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { fetchHealth, fetchLatestEvents, fetchCurrentStatus } from '../../services/api';
+import { fetchHealth, fetchLatestEventsDirect, fetchCurrentStatus } from '../../services/api';
 
 export default function SupabaseTester() {
   const [health, setHealth] = useState(null);
@@ -22,14 +22,32 @@ export default function SupabaseTester() {
 
     // 1. Test Proxy/Backend general
     try {
-      const [h, ev, st] = await Promise.all([
+      const [h, ev, rawStatus] = await Promise.all([
         fetchHealth().catch(e => ({ status: 'error', message: e.message })),
-        fetchLatestEvents(10).catch(e => ({ error: e.message })),
+        fetchLatestEventsDirect(10).catch(e => ({ error: e.message })),
         fetchCurrentStatus().catch(e => ({ error: e.message }))
       ]);
       setHealth(h);
       setEvents(ev);
-      setStatus(st);
+      
+      if (rawStatus && !rawStatus.error) {
+        let totalBikes = 0;
+        let totalDocks = 0;
+        let totalStations = Object.keys(rawStatus).length;
+        
+        Object.values(rawStatus).forEach(st => {
+          totalBikes += st.bikes || 0;
+          totalDocks += st.docks || 0;
+        });
+        
+        setStatus({
+          total_bikes_available: totalBikes,
+          total_docks_available: totalDocks,
+          total_stations: totalStations
+        });
+      } else {
+        setStatus(rawStatus);
+      }
       
       // Supabase is OK if health returns stations
       if (h && h.status === 'ok') {

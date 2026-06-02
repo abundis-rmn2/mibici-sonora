@@ -46,3 +46,4 @@ Thumbs.db
 # ---- Node (para frontend futuro) ----
 node_modules/
 .next/
+frontend/package-lock.json

@@ -64,7 +64,10 @@ La API construida en FastAPI (Python) vive en Render. Su único trabajo es reali
 
 ## 4. Capa de Presentación (Vercel)
 
-El frontend en Next.js se encarga de las visualizaciones interactivas. Actúa como un proxy inverso hacia Render para evitar problemas de CORS y ocultar la API real.
+El frontend en Next.js se encarga de las visualizaciones interactivas. Opera con una **arquitectura híbrida**:
+
+1. **Acceso Directo (Supabase):** Las consultas de alto volumen y baja latencia (estado de las estaciones en tiempo real y últimos eventos para la sonificación) se realizan directamente desde el cliente web hacia Supabase usando `@supabase/supabase-js`.
+2. **Acceso Analítico (Render Proxy):** Los endpoints pesados (Metabolismo, Balance, Líneas de Deseo) continúan pasando por el proxy de Vercel hacia la API de Render para proteger los cálculos intensivos.
 
 ### Despliegue en Vercel
 1. Conecta el proyecto en Vercel al repositorio.
@@ -72,6 +75,8 @@ El frontend en Next.js se encarga de las visualizaciones interactivas. Actúa co
 3. Asegúrate de configurar las siguientes variables marcando los entornos de **Production** y **Preview**:
    - `BACKEND_API_URL` = URL pública del servicio de Render (Ej: `https://mibici-sonora-api.onrender.com`). *Importante: NO usar prefijo NEXT_PUBLIC_.*
    - `SECRET_TOKEN` = El mismo token secreto configurado en el Edge Node (Ej: `tu-token-secreto`). Permite invalidar el caché estático vía webhooks.
+   - `NEXT_PUBLIC_SUPABASE_URL` = URL pública de tu proyecto Supabase.
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = Clave anónima pública de Supabase.
 4. Ejecuta un nuevo Deploy o fusiona tus cambios a la rama `main` para que Vercel reconstruya la aplicación.
 
 ---
@@ -80,6 +85,6 @@ El frontend en Next.js se encarga de las visualizaciones interactivas. Actúa co
 1. **Edge Node:** Consulta GBFS cada 16s -> Detecta 8 cambios -> *INSERT* a Supabase.
 2. **Edge Node:** Dispara Webhook -> HTTP POST a `Vercel (/webhook/revalidate)` con `SECRET_TOKEN`.
 3. **Vercel:** Valida el token -> Purga el caché de Next.js.
-4. **Navegador:** Usuario entra a la web -> Pide `/api/events` a Vercel.
-5. **Vercel Proxy:** Pide `/api/events` a Render en secreto.
-6. **Render:** Consulta a Supabase vía asyncpg -> Calcula JSON -> Responde a Vercel -> Responde al Navegador.
+4. **Navegador:** Usuario entra a la web.
+5. **Acceso Directo:** Navegador consulta `/rest/v1/stations` y `/rest/v1/events` directamente a Supabase para pintar el mapa y disparar los sonidos.
+6. **Acceso Analítico:** Navegador consulta `/api/analytics/metabolism` a Vercel -> Proxy a Render -> Render calcula y responde.

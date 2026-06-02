@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchStations } from '../services/api';
+import { fetchStationsDirect } from '../services/api';
 
 /**
  * Hook para obtener y mantener actualizadas las estaciones.
@@ -39,7 +39,7 @@ export function useStations(pollIntervalMs = 30000) {
         setLoading(prevLoading => prevLoading && stations.length === 0);
       }
       try {
-        const data = await fetchStations();
+        const data = await fetchStationsDirect();
         if (isMounted) {
           // Reemplazamos la info solo cuando el nuevo fetch es exitoso,
           // mientras tanto se dejó la info anterior en pantalla.
