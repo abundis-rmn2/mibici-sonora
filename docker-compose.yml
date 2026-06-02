@@ -1,92 +1,64 @@
 # =============================================================================
-# MiBici Sonora — Docker Compose
-# =============================================================================
-# Orquesta los servicios del sistema para desarrollo local.
-#
-# Servicios:
-#   - postgres: Base de datos PostgreSQL 16 con extensión PostGIS
-#   - backend:  API FastAPI + Collector (polling manual)
-#
-# Uso:
-#   docker compose up -d          # Levantar todo
-#   docker compose logs -f        # Ver logs en tiempo real
-#   docker compose down           # Detener todo
-#   docker compose down -v        # Detener y BORRAR datos
-#
-# IMPORTANTE: El collector NO arranca automáticamente.
-# Usa los comandos CLI para controlar cada paso manualmente.
+# MiBici Sonora — Docker Compose (Edge Computing Architecture)
 # =============================================================================
 
 services:
   # ---------------------------------------------------------------------------
-  # PostgreSQL + PostGIS
+  # Edge Profile
   # ---------------------------------------------------------------------------
-  # Usamos la imagen oficial de PostGIS que incluye la extensión geoespacial.
-  # PostGIS nos permite almacenar y consultar coordenadas geográficas
-  # de las estaciones de bicicletas con funciones espaciales avanzadas.
-  # ---------------------------------------------------------------------------
-  postgres:
+  postgres_local:
     image: postgis/postgis:16-3.4
+    profiles: [edge]
     environment:
-      # Estas variables configuran la base de datos al primer arranque.
-      # PostgreSQL las lee automáticamente para crear el usuario y la DB.
-      POSTGRES_DB: mibici_sonora
+      POSTGRES_DB: mibici_audit
       POSTGRES_USER: mibici
       POSTGRES_PASSWORD: mibici_dev
     ports:
-      # Exponemos el puerto 5432 para poder conectarnos desde el host
-      # con herramientas como pgAdmin, DBeaver, o psql directamente.
       - "5432:5432"
     volumes:
-      # Volumen persistente: los datos sobreviven a reinicios del contenedor.
-      # Si haces `docker compose down`, los datos se conservan.
-      # Si haces `docker compose down -v`, se BORRAN (cuidado).
-      - pgdata:/var/lib/postgresql/data
-      # Script de inicialización: se ejecuta SOLO la primera vez que se
-      # crea la base de datos. Aquí activamos la extensión PostGIS.
+      - ${POSTGRES_VOLUME_PATH:-./postgres_data}:/var/lib/postgresql/data
       - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    # Health check: Docker verifica que PostgreSQL está listo antes de
-    # permitir que el backend se conecte.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mibici -d mibici_sonora"]
+      test: ["CMD-SHELL", "pg_isready -U mibici -d mibici_audit"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  worker:
+    build: ./backend/worker
+    image: mibici-worker:latest
+    profiles: [edge]
+    environment:
+      - LOCAL_DB_URL=${LOCAL_DB_URL}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - SECRET_TOKEN=${SECRET_TOKEN}
+      - GBFS_BASE_URL=${GBFS_BASE_URL:-https://guadalajara.publicbikesystem.net/customer/gbfs/v3.0}
+      - TIMEZONE=${TIMEZONE:-America/Mexico_City}
+    depends_on:
+      postgres_local:
+        condition: service_healthy
+
   # ---------------------------------------------------------------------------
-  # Backend (API FastAPI)
-  # ---------------------------------------------------------------------------
-  # Contiene la API REST y el código del collector.
-  # Al arrancar, SOLO levanta la API (uvicorn).
-  # El collector se controla manualmente con comandos CLI.
+  # API Profile
   # ---------------------------------------------------------------------------
   backend:
     build: ./backend
+    image: mibici-backend:latest
+    profiles: [api]
     environment:
-      # URL de conexión a PostgreSQL.
-      # "postgres" es el nombre del servicio Docker (DNS interno).
-      DATABASE_URL: postgresql+asyncpg://mibici:mibici_dev@postgres:5432/mibici_sonora
-      # URL base del feed GBFS de MiBici Guadalajara
-      GBFS_BASE_URL: https://guadalajara.publicbikesystem.net/customer/gbfs/v3.0
-      # Zona horaria local para logs y análisis
-      TIMEZONE: America/Mexico_City
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - TIMEZONE=${TIMEZONE:-America/Mexico_City}
     ports:
-      # La API será accesible en http://localhost:8000
       - "8000:8000"
-    depends_on:
-      # Esperamos a que PostgreSQL esté saludable antes de arrancar.
-      postgres:
-        condition: service_healthy
-    # -------------------------------------------------------------------------
-    # IMPORTANTE: El collector NO arranca automático.
-    # Usa estos comandos para controlar cada paso:
-    #
-    #   docker compose exec backend python -m cli init-db
-    #   docker compose exec backend python -m cli sync-stations
-    #   docker compose exec backend python -m cli collect-once
-    #   docker compose exec backend python -m cli start-collector
-    # -------------------------------------------------------------------------
 
-# Volúmenes nombrados para persistencia de datos
-volumes:
-  pgdata:
+  # ---------------------------------------------------------------------------
+  # Web Profile
+  # ---------------------------------------------------------------------------
+  frontend:
+    build: ./frontend
+    profiles: [web]
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+    ports:
+      - "3000:3000"

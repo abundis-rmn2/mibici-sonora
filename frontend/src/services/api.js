@@ -13,7 +13,9 @@ const API_BASE = '/api';
  * Obtiene todas las estaciones con su status actual
  */
 export async function fetchStations() {
-  const response = await fetch(`${API_BASE}/stations`);
+  const response = await fetch(`${API_BASE}/stations`, {
+    next: { tags: ['stations-data'] }
+  });
   if (!response.ok) {
     throw new Error(`Error fetching stations: ${response.statusText}`);
   }
