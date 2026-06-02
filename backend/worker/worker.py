@@ -8,6 +8,14 @@ from db import init_local_db, get_local_conn, get_supabase_conn
 from http_client import fetch_mibici_data
 from diff import compute_diff
 from webhook import trigger_frontend_revalidate
+from analytics_tasks import (
+    run_compute_urban_metabolism,
+    run_compute_desire_lines,
+    run_compute_multimodal_stress,
+    run_compute_network_centrality,
+    run_compute_lisa_clusters,
+    run_compute_bike_derby
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -164,6 +172,43 @@ async def run_collect_status():
 
 
 
+async def run_hourly_analytics():
+    logger.info("🎬 Running hourly analytics job...")
+    conn = None
+    try:
+        conn = await get_supabase_conn()
+        await run_compute_urban_metabolism(conn)
+        await run_compute_bike_derby(conn)
+    except Exception as e:
+        logger.error(f"❌ Error in hourly analytics job: {e}")
+    finally:
+        if conn:
+            await conn.close()
+
+
+async def run_daily_analytics():
+    logger.info("🎬 Running daily analytics job...")
+    conn = None
+    try:
+        conn = await get_supabase_conn()
+        await run_compute_network_centrality(conn)
+        await run_compute_lisa_clusters(conn)
+        await run_compute_desire_lines(conn)
+        await run_compute_multimodal_stress(conn)
+    except Exception as e:
+        logger.error(f"❌ Error in daily analytics job: {e}")
+    finally:
+        if conn:
+            await conn.close()
+
+
+async def run_analytics_on_startup():
+    logger.info("🚀 Startup Analytics Trigger: Wait 5 seconds for system to settle...")
+    await asyncio.sleep(5)
+    await run_hourly_analytics()
+    await run_daily_analytics()
+
+
 async def main():
     logger.info("🚀 Starting Edge Worker...")
     
@@ -190,7 +235,19 @@ async def main():
     # Estado/Diffs: Cada hora (minuto 0) para ahorrar recursos del nodo y DB
     scheduler.add_job(run_collect_status, 'cron', hour='1-4', minute='0')
     
+    # -------------------------------------------------------------------------
+    # TAREAS DE ANALÍTICA (EDGE/PI)
+    # -------------------------------------------------------------------------
+    # Analítica Horaria (Metabolismo y Derby): Cada hora al minuto 5
+    scheduler.add_job(run_hourly_analytics, 'cron', minute='5')
+    
+    # Analítica Diaria (LISA, Centralidad, Desire Lines, Volatilidad): A las 2:00 AM diariamente
+    scheduler.add_job(run_daily_analytics, 'cron', hour='2', minute='0')
+    
     scheduler.start()
+    
+    # Ejecutar analíticas en background al iniciar para poblar tablas vacías
+    asyncio.create_task(run_analytics_on_startup())
     
     # Keep the worker running
     while True:

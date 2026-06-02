@@ -3,12 +3,12 @@
 # =============================================================================
 # CAPA: Adaptadores → API → Routers
 #
-# Define los endpoints HTTP relacionados con eventos:
-#   GET /api/events/latest         → Últimos eventos del sistema
-#   GET /api/events/station/{id}   → Eventos de una estación
+# Define los endpoints HTTP relacionados con eventos.
 #
-# Los eventos son el dato más valioso del sistema:
-# representan actividad real (alguien tomó o devolvió una bici).
+# NOTA DE ARQUITECTURA:
+# - Todos estos endpoints fueron migrados a Consumo Directo desde el Frontend 
+#   hacia Supabase (a través de consultas directas a la tabla events con RLS).
+# - Se mantienen aquí marcados como DEPRECATED únicamente para compatibilidad de API.
 # =============================================================================
 
 from fastapi import APIRouter, Depends, Query
@@ -26,8 +26,9 @@ router = APIRouter(
 @router.get(
     "/latest",
     response_model=list[EventResponse],
-    summary="Últimos eventos",
-    description="Retorna los eventos más recientes del sistema (bike_taken, bike_returned).",
+    summary="[DEPRECATED] Últimos eventos",
+    description="Migrado a consumo directo de la tabla events en Supabase.",
+    deprecated=True,
 )
 async def get_latest_events(
     limit: int = Query(
@@ -40,17 +41,6 @@ async def get_latest_events(
 ):
     """
     Obtiene los eventos más recientes de TODO el sistema.
-
-    Cada evento indica que una o más bicicletas fueron tomadas
-    o devueltas en una estación específica.
-
-    Los eventos se ordenan por timestamp descendente (más reciente primero).
-
-    Args:
-        limit: Máximo de eventos a retornar (default 50, max 200)
-
-    Returns:
-        Lista de eventos recientes
     """
     events = await container.event_repo.get_latest(limit=limit)
 
@@ -69,8 +59,9 @@ async def get_latest_events(
 @router.get(
     "/station/{station_id}",
     response_model=list[EventResponse],
-    summary="Eventos de una estación",
-    description="Retorna los eventos más recientes de una estación específica.",
+    summary="[DEPRECATED] Eventos de una estación",
+    description="Migrado a consumo directo de la tabla events en Supabase.",
+    deprecated=True,
 )
 async def get_station_events(
     station_id: str,
@@ -84,16 +75,6 @@ async def get_station_events(
 ):
     """
     Obtiene los eventos de una estación específica.
-
-    Útil para ver la actividad reciente de una estación individual:
-    ¿cuántas bicis se tomaron/devolvieron en las últimas horas?
-
-    Args:
-        station_id: ID de la estación
-        limit: Máximo de eventos
-
-    Returns:
-        Lista de eventos de esa estación
     """
     events = await container.event_repo.get_by_station(
         station_id=station_id,

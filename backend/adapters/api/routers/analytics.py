@@ -1,3 +1,20 @@
+# =============================================================================
+# MiBici Sonora — Router: Analítica y Lúdico
+# =============================================================================
+# CAPA: Adaptadores → API → Routers
+#
+# Define los endpoints analíticos y lúdicos del sistema.
+#
+# NOTA DE ARQUITECTURA:
+# - Las rutas que realizan cálculos pesados en batch (LISA, Centralidad, etc.)
+#   y las consultas CRUD directas se migraron a Supabase Direct (consumidas
+#   directamente desde el frontend para mínima latencia).
+# - Las rutas marcadas como DEPRECATED se mantienen por compatibilidad pero ya no
+#   son consultadas por el frontend.
+# - Las rutas dinámicas (que reciben parámetros dinámicos de rango de tiempo o
+#   lógicas procedimentales complejas) se retienen y ejecutan en vivo aquí.
+# =============================================================================
+
 from datetime import datetime
 from typing import Optional
 
@@ -8,18 +25,36 @@ from infrastructure.container import Container
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
+# =============================================================================
+# 1. ENPOINTS DEPRECATED (Migrados a Consumo Directo Supabase)
+# =============================================================================
 
-@router.get("/station-summary")
+@router.get(
+    "/station-summary",
+    deprecated=True,
+    summary="[DEPRECATED] Resumen de Estaciones",
+    description="Migrado a consumo directo de la vista stations_with_latest_snapshot en Supabase.",
+)
 async def station_summary(container: Container = Depends(get_container)):
     return await container.analytics.get_station_summaries()
 
 
-@router.get("/current-status")
+@router.get(
+    "/current-status",
+    deprecated=True,
+    summary="[DEPRECATED] Estado Actual (Tiempo Real)",
+    description="Migrado a consumo directo de la vista stations_with_latest_snapshot en Supabase.",
+)
 async def current_status(container: Container = Depends(get_container)):
     return await container.analytics.get_current_status()
 
 
-@router.get("/history/{station_id}")
+@router.get(
+    "/history/{station_id}",
+    deprecated=True,
+    summary="[DEPRECATED] Historial de una Estación",
+    description="Migrado a consumo directo de la tabla snapshots en Supabase.",
+)
 async def history(
     station_id: str,
     limit: int = Query(100, ge=1, le=1000),
@@ -30,7 +65,12 @@ async def history(
     return await container.analytics.get_station_history(station_id, limit, start, end)
 
 
-@router.get("/events")
+@router.get(
+    "/events",
+    deprecated=True,
+    summary="[DEPRECATED] Eventos Recientes",
+    description="Migrado a consumo directo de la tabla events en Supabase.",
+)
 async def events(
     limit: int = Query(50, ge=1, le=500),
     station_id: Optional[str] = None,
@@ -39,48 +79,11 @@ async def events(
     return await container.analytics.get_recent_events(limit, station_id)
 
 
-@router.get("/flow")
-async def flow(
-    limit: int = Query(20, ge=1, le=100),
-    start: Optional[datetime] = None,
-    end: Optional[datetime] = None,
-    container: Container = Depends(get_container),
-):
-    return await container.analytics.get_city_flow(limit, start, end)
-
-
-@router.get("/balance")
-async def balance(
-    start: Optional[datetime] = None,
-    end: Optional[datetime] = None,
-    top_n: int = Query(25, ge=1, le=100),
-    container: Container = Depends(get_container),
-):
-    return await container.analytics.calculate_balance_and_availability(start, end, top_n)
-
-
-@router.get("/movement")
-async def movement(
-    threshold: int = Query(8, ge=1),
-    start: Optional[datetime] = None,
-    end: Optional[datetime] = None,
-    container: Container = Depends(get_container),
-):
-    return await container.analytics.classify_movement(threshold, start, end)
-
-
-# =============================================================================
-# Endpoints de Analítica Urbana Avanzada
-# =============================================================================
-
 @router.get(
     "/urban/metabolism",
-    summary="Metabolismo Urbano — Fuentes y Sumideros",
-    description=(
-        "Calcula el flujo neto de bicicletas por estación en una ventana horaria. "
-        "Clasifica cada estación como FUENTE (se vacía) o SUMIDERO (se llena). "
-        "time_window: morning|midday|afternoon|night"
-    ),
+    deprecated=True,
+    summary="[DEPRECATED] Metabolismo Urbano",
+    description="Migrado a precomputación en Edge Worker y consumo directo de la tabla analytics_urban_metabolism.",
 )
 async def urban_metabolism(
     time_window: str = Query("morning", pattern="^(morning|midday|afternoon|night)$"),
@@ -91,11 +94,9 @@ async def urban_metabolism(
 
 @router.get(
     "/urban/desire-lines",
-    summary="Líneas de Deseo — Corredores de Alta Fricción",
-    description=(
-        "Infiere pares origen-destino de alta demanda usando correlación estadística "
-        "de eventos. Revela corredores que la infraestructura ciclista podría priorizar."
-    ),
+    deprecated=True,
+    summary="[DEPRECATED] Líneas de Deseo",
+    description="Migrado a precomputación en Edge Worker y consumo directo de la tabla analytics_desire_lines.",
 )
 async def desire_lines(container: Container = Depends(get_container)):
     return await container.analytics.get_desire_lines()
@@ -103,11 +104,9 @@ async def desire_lines(container: Container = Depends(get_container)):
 
 @router.get(
     "/urban/multimodal-stress",
-    summary="Índice de Presión Multimodal — Estrés de Última Milla",
-    description=(
-        "Calcula la volatilidad (STDDEV) del inventario de bicicletas por estación "
-        "en los últimos 7 días. Alta volatilidad = alta presión intermodal."
-    ),
+    deprecated=True,
+    summary="[DEPRECATED] Índice de Presión Multimodal",
+    description="Migrado a precomputación en Edge Worker y consumo directo de la tabla analytics_multimodal_stress.",
 )
 async def multimodal_stress(container: Container = Depends(get_container)):
     return await container.analytics.get_multimodal_stress()
@@ -115,12 +114,9 @@ async def multimodal_stress(container: Container = Depends(get_container)):
 
 @router.get(
     "/network/centrality",
-    summary="Topología de Red — Centralidad de Intermediación",
-    description=(
-        "Calcula la Betweenness Centrality de cada estación usando NetworkX. "
-        "Identifica nodos puente cuya falla fragmentaría la red de movilidad. "
-        "Ref: Porta et al. (2006), Environment and Planning B."
-    ),
+    deprecated=True,
+    summary="[DEPRECATED] Centralidad de Intermediación",
+    description="Migrado a precomputación en Edge Worker y consumo directo de la tabla analytics_centrality_results.",
 )
 async def network_centrality(container: Container = Depends(get_container)):
     return await container.analytics.get_network_centrality()
@@ -128,12 +124,9 @@ async def network_centrality(container: Container = Depends(get_container)):
 
 @router.get(
     "/network/lisa",
-    summary="Autocorrelación Espacial Local (LISA) — Clústeres Dinámicos",
-    description=(
-        "Calcula el estadístico I de Moran Local sobre el ratio de disponibilidad actual. "
-        "Clasifica estaciones en HH/LL/HL/LH (p < 0.05). "
-        "Ref: Anselin (1995), Geographical Analysis."
-    ),
+    deprecated=True,
+    summary="[DEPRECATED] Autocorrelación Espacial Local (LISA)",
+    description="Migrado a precomputación en Edge Worker y consumo directo de la tabla analytics_lisa_results.",
 )
 async def lisa_clusters(container: Container = Depends(get_container)):
     return await container.analytics.get_lisa_clusters()
@@ -141,21 +134,74 @@ async def lisa_clusters(container: Container = Depends(get_container)):
 
 @router.get(
     "/playful/derby",
-    summary="Derby de Movilidad — Velocidades Inferidas",
-    description=(
-        "Infiere velocidades de trayectos usando distancia Haversine entre estaciones "
-        "y delta temporal entre eventos. Separa ciclistas reales de redistribución logística."
-    ),
+    deprecated=True,
+    summary="[DEPRECATED] Derby de Movilidad",
+    description="Migrado a precomputación en Edge Worker y consumo directo de la tabla analytics_bike_derby.",
 )
 async def bike_derby(container: Container = Depends(get_container)):
     return await container.analytics.get_bike_derby()
+
+
+# =============================================================================
+# 2. ENPOINTS ACTIVOS DINÁMICOS (Procesamiento en Vivo)
+# =============================================================================
+
+@router.get(
+    "/flow",
+    summary="Flujo Dinámico de la Ciudad (Orígenes y Destinos)",
+    description=(
+      "Obtiene el flujo inferido origen-destino filtrado dinámicamente por "
+      "rango de fechas en el parámetro de consulta."
+    ),
+)
+async def flow(
+    limit: int = Query(20, ge=1, le=100),
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    container: Container = Depends(get_container),
+):
+    return await container.analytics.get_city_flow(limit, start, end)
+
+
+@router.get(
+    "/balance",
+    summary="Balance y Disponibilidad Dinámica de Estaciones",
+    description=(
+      "Calcula las estaciones con mejor y peor balance de disponibilidad "
+      "filtrado dinámicamente por rango de fechas."
+    ),
+)
+async def balance(
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    top_n: int = Query(25, ge=1, le=100),
+    container: Container = Depends(get_container),
+):
+    return await container.analytics.calculate_balance_and_availability(start, end, top_n)
+
+
+@router.get(
+    "/movement",
+    summary="Clasificación Dinámica de Movimiento Logístico (Anomalías)",
+    description=(
+      "Clasifica los eventos dinámicos superiores al umbral como movimientos "
+      "de rebalanceo logístico del staff (anomalías de volumen)."
+    ),
+)
+async def movement(
+    threshold: int = Query(8, ge=1),
+    start: Optional[datetime] = None,
+    end: Optional[datetime] = None,
+    container: Container = Depends(get_container),
+):
+    return await container.analytics.classify_movement(threshold, start, end)
 
 
 @router.get(
     "/playful/hero-journey",
     summary="Viaje del Héroe — Cronología de la Estación Protagonista",
     description=(
-        "Narra la historia de la estación más activa como protagonista. "
+        "Narra la historia procedimental de la estación más activa como protagonista. "
         "Sin bike_id, la estación actúa como actor: su cronología de eventos, "
         "períodos de inactividad y picos de demanda cuentan la vida de la ciudad."
     ),
@@ -165,4 +211,3 @@ async def hero_journey(
     container: Container = Depends(get_container),
 ):
     return await container.analytics.get_hero_journey(station_id)
-

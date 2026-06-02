@@ -2,3 +2,7 @@ httpx[http2]
 asyncpg
 APScheduler
 python-dotenv
+numpy
+networkx
+libpysal
+esda
