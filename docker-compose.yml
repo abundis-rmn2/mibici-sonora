@@ -30,6 +30,7 @@ services:
       - LOCAL_DB_URL=${LOCAL_DB_URL}
       - SUPABASE_DB_URL=${SUPABASE_DB_URL}
       - SECRET_TOKEN=${SECRET_TOKEN}
+      - FRONTEND_URL=${FRONTEND_URL}
       - GBFS_BASE_URL=${GBFS_BASE_URL:-https://guadalajara.publicbikesystem.net/customer/gbfs/v3.0}
       - TIMEZONE=${TIMEZONE:-America/Mexico_City}
     depends_on:
