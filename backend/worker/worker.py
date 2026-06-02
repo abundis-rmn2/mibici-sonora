@@ -101,13 +101,28 @@ async def run_collect_status():
     except Exception as e:
         logger.error(f"❌ Error saving audit payload locally: {e}")
         
+    # 1.5 Fetch existing station IDs to prevent foreign key violations
+    existing_station_ids = set()
+    supa_conn = None
+    try:
+        supa_conn = await get_supabase_conn()
+        rows = await supa_conn.fetch("SELECT id FROM stations")
+        existing_station_ids = {str(r['id']) for r in rows}
+    except Exception as e:
+        logger.error(f"❌ Error fetching existing stations for FK verification: {e}")
+    finally:
+        if supa_conn:
+            await supa_conn.close()
+
     # 2. Compute diffs
     diffs = compute_diff(stations)
-    if not diffs:
-        # No changes
+    # Filter diffs to only include stations existing in the database
+    valid_diffs = [d for d in diffs if str(d['station_id']) in existing_station_ids]
+    if not valid_diffs:
+        # No changes or no valid stations
         return
         
-    logger.info(f"🔍 Computed diffs: {len(diffs)} stations changed state.")
+    logger.info(f"🔍 Computed diffs: {len(valid_diffs)} stations changed state.")
     
     # 3. Bulk insert to Supabase
     supa_conn = None
@@ -116,7 +131,7 @@ async def run_collect_status():
         
         # Prepare values for snapshots
         values = []
-        for d in diffs:
+        for d in valid_diffs:
             values.append((
                 d['station_id'],
                 now,
@@ -135,7 +150,7 @@ async def run_collect_status():
             
             # 3.5 Generate and insert events
             event_values = []
-            for d in diffs:
+            for d in valid_diffs:
                 delta = d.get('delta_bikes', 0)
                 if delta == 0:
                     continue
