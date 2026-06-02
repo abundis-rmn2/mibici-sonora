@@ -16,11 +16,11 @@ async def trigger_frontend_revalidate():
     headers = {"Authorization": f"Bearer {secret_token}"}
     
     try:
-        async with httpx.AsyncClient(http2=True) as client:
+        async with httpx.AsyncClient(http2=True, timeout=15.0) as client:
             resp = await client.post(url, headers=headers)
             if resp.status_code == 200:
                 logger.info("✅ Frontend cache revalidated successfully.")
             else:
                 logger.error(f"❌ Failed to revalidate cache. Status: {resp.status_code}, Body: {resp.text}")
     except Exception as e:
-        logger.error(f"❌ Error triggering webhook: {e}")
+        logger.error(f"❌ Error triggering webhook: {e.__class__.__name__} - {str(e)}")

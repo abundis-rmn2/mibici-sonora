@@ -14,5 +14,5 @@ async def fetch_mibici_data(endpoint_path: str) -> dict:
             resp.raise_for_status()
             return resp.json()
     except Exception as e:
-        logger.error(f"❌ Error fetching {url}: {e}")
+        logger.error(f"❌ Error fetching {url}: {e.__class__.__name__} - {str(e)}")
         return None
