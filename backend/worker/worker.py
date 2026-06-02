@@ -21,6 +21,7 @@ async def run_sync_stations():
     stations = data['data']['stations']
     
     # We only upsert to Supabase
+    conn = None
     try:
         conn = await get_supabase_conn()
         
@@ -58,7 +59,8 @@ async def run_sync_stations():
     except Exception as e:
         logger.error(f"❌ Error syncing stations to Supabase: {e}")
     finally:
-        await conn.close()
+        if conn:
+            await conn.close()
 
 async def run_collect_status():
     """Fetch station status, store full locally, compute diffs, bulk insert diffs, and revalidate frontend."""
@@ -87,6 +89,7 @@ async def run_collect_status():
     logger.info(f"🔍 Computed diffs: {len(diffs)} stations changed state.")
     
     # 3. Bulk insert to Supabase
+    supa_conn = None
     try:
         supa_conn = await get_supabase_conn()
         
@@ -114,13 +117,16 @@ async def run_collect_status():
             
             logger.info(f"✅ Bulk inserted {len(values)} diffs to Supabase.")
             
-        await supa_conn.close()
-        
-        # 4. Trigger Webhook
-        await trigger_frontend_revalidate()
-        
+            # 4. Trigger Webhook
+            await trigger_frontend_revalidate()
+            
     except Exception as e:
         logger.error(f"❌ Error bulk inserting diffs to Supabase: {e}")
+    finally:
+        if supa_conn:
+            await supa_conn.close()
+        
+
 
 
 async def main():
