@@ -172,15 +172,23 @@ async def main():
     
     scheduler = AsyncIOScheduler(timezone="America/Mexico_City")
     
-    # Metadatos de estaciones: Minutos 0 y 30 (de 06:00 a 14:00) y minuto 0 (de 14:00 a 17:00)
-    scheduler.add_job(run_sync_stations, 'cron', hour='6-13', minute='0,30')
-    scheduler.add_job(run_sync_stations, 'cron', hour='14-17', minute='0')
+    # -------------------------------------------------------------------------
+    # HORARIO ACTIVO (5 AM a 1 AM del día siguiente)
+    # -------------------------------------------------------------------------
+    # Metadatos: Cada 30 minutos (minutos 0 y 30)
+    scheduler.add_job(run_sync_stations, 'cron', hour='5-23,0', minute='0,30')
     
-    # Initial sync just in case
-    await run_sync_stations()
+    # Estado/Diffs: Cada 16 segundos (segundos 0, 16, 32, 48 de cada minuto)
+    scheduler.add_job(run_collect_status, 'cron', hour='5-23,0', second='*/16')
+
+    # -------------------------------------------------------------------------
+    # HORARIO INACTIVO (1 AM a 5 AM)
+    # -------------------------------------------------------------------------
+    # Metadatos: Cada hora (minuto 0)
+    scheduler.add_job(run_sync_stations, 'cron', hour='1-4', minute='0')
     
-    # Estado (Latest): Intervalo ininterrumpido cada 16 segundos.
-    scheduler.add_job(run_collect_status, 'interval', seconds=16)
+    # Estado/Diffs: Cada hora (minuto 0) para ahorrar recursos del nodo y DB
+    scheduler.add_job(run_collect_status, 'cron', hour='1-4', minute='0')
     
     scheduler.start()
     
