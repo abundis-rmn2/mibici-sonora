@@ -12,7 +12,7 @@ async def trigger_frontend_revalidate():
         logger.warning("SECRET_TOKEN is not set, skipping webhook.")
         return
         
-    url = f"{webhook_url.rstrip('/')}/api/revalidate"
+    url = f"{webhook_url.rstrip('/')}/webhook/revalidate"
     headers = {"Authorization": f"Bearer {secret_token}"}
     
     try:
