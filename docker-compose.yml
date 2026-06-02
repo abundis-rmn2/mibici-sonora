@@ -7,7 +7,7 @@ services:
   # Edge Profile
   # ---------------------------------------------------------------------------
   postgres_local:
-    image: postgis/postgis:16-3.4
+    image: postgres:16-alpine
     profiles: [edge]
     environment:
       POSTGRES_DB: mibici_audit
@@ -17,7 +17,6 @@ services:
       - "5432:5432"
     volumes:
       - ${POSTGRES_VOLUME_PATH:-./postgres_data}:/var/lib/postgresql/data
-      - ./infra/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U mibici -d mibici_audit"]
       interval: 5s
