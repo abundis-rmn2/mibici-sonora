@@ -17,7 +17,7 @@ def compute_diff(current_stations: List[Dict[str, Any]]) -> List[Dict[str, Any]]
         if not sid:
             continue
             
-        bikes = st.get('num_bikes_available', 0)
+        bikes = st.get('num_vehicles_available', st.get('num_bikes_available', 0))
         docks = st.get('num_docks_available', 0)
         
         current_data = {
@@ -33,12 +33,14 @@ def compute_diff(current_stations: List[Dict[str, Any]]) -> List[Dict[str, Any]]
         
         if sid not in previous_state:
             # First time seeing this station, consider it a diff
-            diffs.append({'station_id': sid, **current_data})
+            # Cannot accurately compute delta on first run, default to 0
+            diffs.append({'station_id': sid, 'delta_bikes': 0, **current_data})
         else:
             prev = previous_state[sid]
             # Check if relevant data changed
+            delta_bikes = bikes - prev['bikes']
             if prev['bikes'] != bikes or prev['docks'] != docks:
-                diffs.append({'station_id': sid, **current_data})
+                diffs.append({'station_id': sid, 'delta_bikes': delta_bikes, **current_data})
                 
     previous_state = new_state
     return diffs
