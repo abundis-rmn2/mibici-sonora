@@ -140,15 +140,13 @@ async def run_collect_status():
                     d['station_id'],
                     now,
                     event_type,
-                    abs_delta,
-                    d['bikes'],
-                    d['docks']
+                    abs_delta
                 ))
                 
             if event_values:
                 await supa_conn.executemany("""
-                    INSERT INTO events (station_id, timestamp, event_type, delta, current_bikes, current_docks)
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    INSERT INTO events (station_id, timestamp, event_type, delta)
+                    VALUES ($1, $2, $3, $4)
                 """, event_values)
                 logger.info(f"✅ Bulk inserted {len(event_values)} events to Supabase.")
             
