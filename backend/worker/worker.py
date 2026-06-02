@@ -12,6 +12,19 @@ from webhook import trigger_frontend_revalidate
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+def extract_spanish_text(name_array) -> str:
+    if isinstance(name_array, str):
+        return name_array
+    if not name_array:
+        return ""
+    for item in name_array:
+        if isinstance(item, dict) and item.get("language") == "es":
+            return item.get("text", "")
+    if isinstance(name_array[0], dict):
+        return name_array[0].get("text", "")
+    return str(name_array[0])
+
+
 async def run_sync_stations():
     """Fetch station information and bulk upsert into Supabase."""
     data = await fetch_mibici_data("station_information.json")
@@ -28,9 +41,9 @@ async def run_sync_stations():
         # Prepare bulk values
         values = []
         for st in stations:
-            sid = st.get('station_id')
-            name = st.get('name', '')
-            short_name = st.get('short_name', '')
+            sid = str(st.get('station_id', ''))
+            name = extract_spanish_text(st.get('name', ''))
+            short_name = extract_spanish_text(st.get('short_name', ''))
             lat = st.get('lat', 0.0)
             lon = st.get('lon', 0.0)
             capacity = st.get('capacity', 0)
