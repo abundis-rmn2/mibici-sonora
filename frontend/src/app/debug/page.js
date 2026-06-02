@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchHealth, fetchLatestEventsDirect, fetchCurrentStatus } from '../../services/api';
+import { createClient } from '../../utils/supabase/client';
+
+const supabase = createClient();
 
 export default function SupabaseTester() {
   const [health, setHealth] = useState(null);
@@ -20,7 +23,24 @@ export default function SupabaseTester() {
     setRenderPing("Pinging...");
     setSupabasePing("Pinging...");
 
-    // 1. Test Proxy/Backend general
+    // 1. Test Direct Supabase Latency & Connection
+    try {
+      const startSupa = performance.now();
+      const { data, error: supaErr } = await supabase
+        .from('stations')
+        .select('id', { count: 'exact', head: true });
+      const endSupa = performance.now();
+      
+      if (supaErr) {
+        setSupabasePing(`❌ Falló: ${supaErr.message}`);
+      } else {
+        setSupabasePing(`✅ OK Directo (${Math.round(endSupa - startSupa)}ms) - Conectado a PostgreSQL`);
+      }
+    } catch (err) {
+      setSupabasePing(`❌ Error de conexión: ${err.message}`);
+    }
+
+    // 2. Test Data Load via Direct Supabase Services
     try {
       const [h, ev, rawStatus] = await Promise.all([
         fetchHealth().catch(e => ({ status: 'error', message: e.message })),
@@ -48,13 +68,6 @@ export default function SupabaseTester() {
       } else {
         setStatus(rawStatus);
       }
-      
-      // Supabase is OK if health returns stations
-      if (h && h.status === 'ok') {
-        setSupabasePing(`✅ OK (Latencia Proxy: ~${Math.floor(Math.random() * 50 + 20)}ms)`);
-      } else {
-        setSupabasePing(`❌ Falló: ${h?.message || "No hay conexión"}`);
-      }
 
     } catch (err) {
       setError(err.message);
@@ -62,11 +75,11 @@ export default function SupabaseTester() {
       setLoading(false);
     }
 
-    // 2. Direct Render Ping (Bypassing Vercel proxy, testing CORS and raw speed)
+    // 3. Direct Render Ping (Bypassing Vercel proxy, testing CORS and raw speed)
     try {
       const start = performance.now();
       const RENDER_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || "https://mibici-sonora.onrender.com";
-      const res = await fetch(RENDER_URL + "/");
+      const res = await fetch(RENDER_URL + "/api/health");
       const end = performance.now();
       if (res.ok) {
         setRenderPing(`✅ OK (${Math.round(end - start)}ms) - Servidor FastAPI Vivo`);
@@ -83,7 +96,7 @@ export default function SupabaseTester() {
   }, []);
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '1200px', margin: '0 auto', color: '#fff', backgroundColor: '#111', height: '100vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+    <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif', maxWidth: '1200px', margin: '0 auto', color: '#fff', backgroundColor: '#111', minHeight: '100vh', overflowY: 'auto', boxSizing: 'border-box' }}>
       <header style={{ borderBottom: '1px solid #333', paddingBottom: '1rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ margin: 0, color: '#00ffcc' }}>🛠️ Matriz de Diagnóstico y Dependencias</h1>
         <button 
@@ -102,41 +115,47 @@ export default function SupabaseTester() {
 
       {/* MATRIZ DE COMPONENTES */}
       <section style={{ background: '#222', padding: '1.5rem', borderRadius: '8px', border: '1px solid #333', marginBottom: '2rem' }}>
-        <h2 style={{ marginTop: 0, borderBottom: '1px solid #444', paddingBottom: '0.5rem' }}>Arquitectura Frontend: Servicios Consumidos por Componente</h2>
+        <h2 style={{ marginTop: 0, borderBottom: '1px solid #444', paddingBottom: '0.5rem' }}>Arquitectura Distribuida: Orígenes de Datos y Flujos</h2>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
             <thead>
               <tr style={{ background: '#333' }}>
                 <th style={{ padding: '0.75rem' }}>Componente (UI)</th>
-                <th style={{ padding: '0.75rem' }}>Servicio Backend (Endpoint)</th>
-                <th style={{ padding: '0.75rem' }}>Tabla Supabase Afectada</th>
-                <th style={{ padding: '0.75rem' }}>Propósito</th>
+                <th style={{ padding: '0.75rem' }}>Origen de Datos</th>
+                <th style={{ padding: '0.75rem' }}>Tabla / Vista / API</th>
+                <th style={{ padding: '0.75rem' }}>Propósito / Ventaja</th>
               </tr>
             </thead>
             <tbody>
               <tr style={{ borderBottom: '1px solid #444' }}>
                 <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#00ffcc' }}>Mapa Principal (Home)</td>
-                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>GET /api/stations</td>
-                <td style={{ padding: '0.75rem' }}>stations, snapshots</td>
-                <td style={{ padding: '0.75rem' }}>Pintar pines, capacidades e inventario base.</td>
+                <td style={{ padding: '0.75rem' }}>Supabase Directo (View)</td>
+                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>stations_with_latest_snapshot</td>
+                <td style={{ padding: '0.75rem' }}>Visualización de pines con inventario en tiempo real sin latencia de API.</td>
               </tr>
               <tr style={{ borderBottom: '1px solid #444' }}>
-                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#ffaa44' }}>Motor de Sonificación (Audio)</td>
-                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>GET /api/events/latest</td>
-                <td style={{ padding: '0.75rem' }}>events</td>
-                <td style={{ padding: '0.75rem' }}>Disparar notas musicales según bicis tomadas/devueltas.</td>
+                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#ffaa44' }}>Motor de Audio (Sonificación)</td>
+                <td style={{ padding: '0.75rem' }}>Supabase Directo (Table)</td>
+                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>events</td>
+                <td style={{ padding: '0.75rem' }}>Detección de deltas para disparar notas musicales de forma instantánea.</td>
               </tr>
               <tr style={{ borderBottom: '1px solid #444' }}>
-                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#ff44ff' }}>Dashboard de Datos (/datos)</td>
-                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>GET /api/analytics/*</td>
-                <td style={{ padding: '0.75rem' }}>events, snapshots</td>
-                <td style={{ padding: '0.75rem' }}>Metabolismo, Balance, Líneas de Deseo y Topología LISA.</td>
+                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#ff44ff' }}>Dashboard Precalculado</td>
+                <td style={{ padding: '0.75rem' }}>Edge Worker ➡️ Supabase</td>
+                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>analytics_* (LISA, Centrality, etc.)</td>
+                <td style={{ padding: '0.75rem' }}>Cálculos espaciales pesados procesados asíncronamente en Raspberry Pi.</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #444' }}>
+                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#88ccff' }}>Lógica Dinámica (/datos tabs)</td>
+                <td style={{ padding: '0.75rem' }}>Render FastAPI (Live)</td>
+                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>/api/analytics/{'{flow, balance, movement}'}</td>
+                <td style={{ padding: '0.75rem' }}>Cálculo en vivo sobre rangos de tiempo e histogramas filtrados por el usuario.</td>
               </tr>
               <tr>
-                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#88ccff' }}>Webhook de Caché</td>
-                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>POST /webhook/revalidate</td>
-                <td style={{ padding: '0.75rem' }}>- (Viene del Raspberry Pi)</td>
-                <td style={{ padding: '0.75rem' }}>Purga el caché de la web cuando la DB cambia.</td>
+                <td style={{ padding: '0.75rem', fontWeight: 'bold', color: '#ff4466' }}>Viaje del Héroe (Lúdico)</td>
+                <td style={{ padding: '0.75rem' }}>Render FastAPI (Live)</td>
+                <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>/api/analytics/playful/hero-journey</td>
+                <td style={{ padding: '0.75rem' }}>Generación procedimental de narrativa y crónica textual en Python.</td>
               </tr>
             </tbody>
           </table>
@@ -150,11 +169,11 @@ export default function SupabaseTester() {
           <h2 style={{ marginTop: 0, borderBottom: '1px solid #444', paddingBottom: '0.5rem' }}>Pings de Infraestructura</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
             <div style={{ background: '#111', padding: '1rem', borderRadius: '4px', borderLeft: '4px solid #00ffcc' }}>
-              <div style={{ fontSize: '0.8rem', opacity: 0.7, textTransform: 'uppercase' }}>Render API (Nube)</div>
+              <div style={{ fontSize: '0.8rem', opacity: 0.7, textTransform: 'uppercase' }}>Render API (Nube FastAPI)</div>
               <div style={{ fontSize: '1.1rem', marginTop: '0.5rem' }}>{renderPing || 'Esperando...'}</div>
             </div>
             <div style={{ background: '#111', padding: '1rem', borderRadius: '4px', borderLeft: '4px solid #ffaa44' }}>
-              <div style={{ fontSize: '0.8rem', opacity: 0.7, textTransform: 'uppercase' }}>Supabase DB (PostgreSQL Pooler)</div>
+              <div style={{ fontSize: '0.8rem', opacity: 0.7, textTransform: 'uppercase' }}>Supabase Direct (PostgreSQL Client)</div>
               <div style={{ fontSize: '1.1rem', marginTop: '0.5rem' }}>{supabasePing || 'Esperando...'}</div>
             </div>
           </div>
@@ -177,7 +196,7 @@ export default function SupabaseTester() {
         {/* EVENTS PANEL */}
         <section style={{ background: '#222', padding: '1.5rem', borderRadius: '8px', border: '1px solid #333', gridColumn: '1 / -1' }}>
           <h2 style={{ marginTop: 0, borderBottom: '1px solid #444', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between' }}>
-            <span>Flujo de Sonificación (Tabla 'events')</span>
+            <span>Flujo de Sonificación (Tabla 'events' en Supabase)</span>
             <span style={{ fontSize: '0.9rem', color: events?.length ? '#00ffcc' : '#ffaa44', fontWeight: 'normal' }}>
               {events?.length ? `${events.length} notas listas para tocar` : 'Sin notas musicales'}
             </span>
