@@ -42,7 +42,7 @@ from infrastructure.config import settings
 # El engine se crea al importar este módulo y se reutiliza globalmente.
 # ---------------------------------------------------------------------------
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    settings.SUPABASE_DB_URL,
     echo=False,  # Cambiar a True para ver queries SQL en los logs
     pool_size=5,
     max_overflow=10,
